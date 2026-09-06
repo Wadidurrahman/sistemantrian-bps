@@ -9,10 +9,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const fetchQueues = async () => {
-    // Ambil waktu reset terakhir
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
-    
-    // Ambil data antrian yang belum selesai sejak reset terakhir
     if (settings) {
       const { data } = await supabase
         .from('queues')
@@ -29,12 +26,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchQueues();
-
-    // Berlangganan Real-time agar otomatis update jika ada tamu daftar
     const channel = supabase
       .channel('admin-queues')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
-        fetchQueues(); // Refresh data setiap ada perubahan
+        fetchQueues(); 
       })
       .subscribe();
 
@@ -44,14 +39,13 @@ export default function AdminDashboard() {
   }, []);
 
   const handlePanggil = async (antrian: any) => {
-    // 1. Update status ke database
     await supabase.from('queues').update({ status: 'Dipanggil', called_at: new Date() }).eq('id', antrian.id);
 
-    // 2. Mainkan Suara (Web Speech API)
+    // 2. (Web Speech API)
     const teks = `Nomor antrian, ${antrian.queue_number}. Atas nama, ${antrian.guest_name}. Menuju loket pelayanan, ${antrian.service_type}.`;
     const speech = new SpeechSynthesisUtterance(teks);
     speech.lang = 'id-ID';
-    speech.rate = 0.85; // Diperlambat sedikit agar jelas
+    speech.rate = 0.85; 
     window.speechSynthesis.speak(speech);
   };
 
@@ -83,7 +77,7 @@ export default function AdminDashboard() {
               <RotateCcw size={18} /> Reset Antrian
             </button>
             <a
-              href="https://docs.google.com/spreadsheets" // Nanti ganti dengan URL Spreadsheet Anda
+              href="https://docs.google.com/spreadsheets" 
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition"

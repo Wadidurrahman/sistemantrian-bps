@@ -9,7 +9,7 @@ export default function DisplayTV() {
   const [recentCalls, setRecentCalls] = useState<any[]>([]);
 
   // Ganti URL ini dengan URL website Anda saat sudah online
-  const linkPendaftaran = "https://antrian-bps-probolinggo.vercel.app"; 
+  const linkPendaftaran = "https://sistemantrian-bps.vercel.app/"; 
 
   const fetchDisplayData = async () => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
