@@ -95,8 +95,16 @@ export default function AdminDashboard() {
       speech.pitch = 1;
       window.speechSynthesis.speak(speech);
     };
-    const chime = new Audio('/chime.mp3');
-    chime.play().then(() => { chime.onended = () => bacaTeks(); }).catch(() => bacaTeks());
+
+    // Menggunakan URL Supabase Storage untuk chime.mp3
+    const chimeUrl = "https://ffljuwtbdszmarcokmvh.supabase.co/storage/v1/object/public/display-media/chime.mp3";
+    const chime = new Audio(chimeUrl);
+    
+    chime.play().then(() => { 
+      chime.onended = () => bacaTeks(); 
+    }).catch(() => {
+      bacaTeks();
+    });
   };
 
   const handlePanggil = async (antrian: any) => {

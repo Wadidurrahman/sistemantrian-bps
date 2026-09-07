@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import { QrCode, Maximize, Minimize } from 'lucide-react';
 
@@ -9,8 +9,11 @@ export default function DisplayTV() {
   const [waitingList, setWaitingList] = useState<any[]>([]);
   const [waktu, setWaktu] = useState<string>('00:00:00');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
   const linkPendaftaran = "https://sistemantrian-bps.vercel.app/";
+  const videoStorageUrl = "https://ffljuwtbdszmarcokmvh.supabase.co/storage/v1/object/public/display-media/video-bps.mov";
 
   const fetchDisplayData = async () => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
@@ -51,6 +54,12 @@ export default function DisplayTV() {
 
   useEffect(() => {
     fetchDisplayData();
+
+    if (videoRef.current) {
+      videoRef.current.play().catch((err) => {
+        console.log("Autoplay dicegah browser:", err);
+      });
+    }
 
     const channel = supabase
       .channel('tv-display')
@@ -153,29 +162,47 @@ export default function DisplayTV() {
       </div>
 
       <div className="w-[60%] bg-slate-950 relative flex flex-col overflow-hidden items-center justify-center">
-        {/* Layer 1: Background Blur Adaptif (Mengisi ruang kosong kanan-kiri secara elegan) */}
-        <iframe
-          src="https://www.youtube.com/embed/6lrGOxwtnu8?autoplay=1&mute=1&loop=1&playlist=6lrGOxwtnu8&controls=0&showinfo=0&disablekb=1&modestbranding=1&fs=0&rel=0"
-          title="Background Blur"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none filter blur-3xl opacity-50 scale-110"
-          tabIndex={-1}
-        />
+        {!videoError ? (
+          <>
+            {/* Latar Belakang Blur Adaptif untuk mengisi sisi kiri-kanan */}
+            <video 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover filter blur-3xl opacity-40 scale-125 pointer-events-none"
+            >
+              <source src={videoStorageUrl} type="video/quicktime" />
+              <source src={videoStorageUrl} type="video/mp4" />
+            </video>
 
-        {/* Layer 2: Video Utama di Tengah (Otomatis menyesuaikan potret/lanskap dengan rapi) */}
-        <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
-          <iframe
-            src="https://www.youtube.com/embed/6lrGOxwtnu8?autoplay=1&mute=1&loop=1&playlist=6lrGOxwtnu8&controls=0&showinfo=0&disablekb=1&modestbranding=1&fs=0&rel=0"
-            title="Video Utama"
-            className="w-full h-full max-h-[calc(100vh-120px)] object-contain pointer-events-none rounded-lg shadow-2xl"
-            tabIndex={-1}
-          />
-        </div>
+            {/* Video Utama di Tengah (Tampil proporsional) */}
+            <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
+              <video 
+                ref={videoRef}
+                autoPlay 
+                loop 
+                muted 
+                playsInline
+                preload="auto"
+                onError={() => setVideoError(true)}
+                className="w-full h-full max-h-[calc(100vh-100px)] object-contain rounded-lg shadow-2xl"
+              >
+                <source src={videoStorageUrl} type="video/quicktime" />
+                <source src={videoStorageUrl} type="video/mp4" />
+                Browser Anda tidak mendukung pemutar video.
+              </video>
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-slate-900 flex items-center justify-center text-white/50 text-xs">
+            Gagal memuat video background
+          </div>
+        )}
 
-        {/* Perisai Transparan Agar Interaksi YouTube Terkunci */}
-        <div className="absolute inset-0 z-20 pointer-events-auto bg-transparent"></div>
-        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/40 via-transparent to-slate-950/40 pointer-events-none z-30"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/40 via-transparent to-transparent pointer-events-none z-20"></div>
 
-        <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-40">
+        <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-30">
           <div className="flex items-center gap-2 mb-3 text-blue-900">
             <QrCode size={22} className="text-orange-600" />
             <span className="font-black text-base tracking-tight uppercase">Ambil Antrian</span>
@@ -194,7 +221,7 @@ export default function DisplayTV() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 h-16 bg-blue-900 border-t-4 border-orange-500 flex items-center overflow-hidden z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <div className="absolute bottom-0 inset-x-0 h-16 bg-blue-900 border-t-4 border-orange-500 flex items-center overflow-hidden z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
           <div className="bg-orange-500 text-white font-black text-lg h-full px-8 flex items-center z-10 shadow-[10px_0_20px_rgba(0,0,0,0.5)] tracking-widest">
             INFO
           </div>
