@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import { QrCode, Maximize, Minimize } from 'lucide-react';
 
@@ -10,7 +10,6 @@ export default function DisplayTV() {
   const [waktu, setWaktu] = useState<string>('00:00:00');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const linkPendaftaran = "https://sistemantrian-bps.vercel.app/";
 
   const fetchDisplayData = async () => {
@@ -30,7 +29,7 @@ export default function DisplayTV() {
       .from('queues')
       .select('*')
       .gte('created_at', settings.last_reset_timestamp)
-      .is('status', null)
+      .or('status.is.null,status.eq.Menunggu')
       .order('created_at', { ascending: true })
       .limit(3);
 
@@ -52,12 +51,6 @@ export default function DisplayTV() {
 
   useEffect(() => {
     fetchDisplayData();
-
-    if (videoRef.current) {
-      videoRef.current.play().catch((err) => {
-        console.log("Autoplay dicegah browser, mencoba memutar ulang:", err);
-      });
-    }
 
     const channel = supabase
       .channel('tv-display')
@@ -159,23 +152,30 @@ export default function DisplayTV() {
         </div>
       </div>
 
-      <div className="w-[60%] bg-black relative flex flex-col overflow-hidden">
-        <video 
-          ref={videoRef}
-          autoPlay 
-          loop 
-          muted 
-          playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover opacity-90"
-        >
-          {/* Diarahkan ke folder public dengan nama file yang benar */}
-          <source src="/video-bps.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/60 via-black/20 to-transparent pointer-events-none"></div>
+      <div className="w-[60%] bg-slate-950 relative flex flex-col overflow-hidden items-center justify-center">
+        {/* Layer 1: Background Blur Adaptif (Mengisi ruang kosong kanan-kiri secara elegan) */}
+        <iframe
+          src="https://www.youtube.com/embed/6lrGOxwtnu8?autoplay=1&mute=1&loop=1&playlist=6lrGOxwtnu8&controls=0&showinfo=0&disablekb=1&modestbranding=1&fs=0&rel=0"
+          title="Background Blur"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none filter blur-3xl opacity-50 scale-110"
+          tabIndex={-1}
+        />
 
-        <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-20">
+        {/* Layer 2: Video Utama di Tengah (Otomatis menyesuaikan potret/lanskap dengan rapi) */}
+        <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
+          <iframe
+            src="https://www.youtube.com/embed/6lrGOxwtnu8?autoplay=1&mute=1&loop=1&playlist=6lrGOxwtnu8&controls=0&showinfo=0&disablekb=1&modestbranding=1&fs=0&rel=0"
+            title="Video Utama"
+            className="w-full h-full max-h-[calc(100vh-120px)] object-contain pointer-events-none rounded-lg shadow-2xl"
+            tabIndex={-1}
+          />
+        </div>
+
+        {/* Perisai Transparan Agar Interaksi YouTube Terkunci */}
+        <div className="absolute inset-0 z-20 pointer-events-auto bg-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/40 via-transparent to-slate-950/40 pointer-events-none z-30"></div>
+
+        <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-40">
           <div className="flex items-center gap-2 mb-3 text-blue-900">
             <QrCode size={22} className="text-orange-600" />
             <span className="font-black text-base tracking-tight uppercase">Ambil Antrian</span>
@@ -194,7 +194,7 @@ export default function DisplayTV() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 h-16 bg-blue-900 border-t-4 border-orange-500 flex items-center overflow-hidden z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <div className="absolute bottom-0 inset-x-0 h-16 bg-blue-900 border-t-4 border-orange-500 flex items-center overflow-hidden z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
           <div className="bg-orange-500 text-white font-black text-lg h-full px-8 flex items-center z-10 shadow-[10px_0_20px_rgba(0,0,0,0.5)] tracking-widest">
             INFO
           </div>
