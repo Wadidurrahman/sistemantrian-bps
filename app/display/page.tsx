@@ -2,33 +2,49 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
-import { Megaphone, MonitorPlay, QrCode } from 'lucide-react';
+import { QrCode, Maximize, Minimize } from 'lucide-react';
 
 export default function DisplayTV() {
   const [currentCall, setCurrentCall] = useState<any>(null);
-  const [recentCalls, setRecentCalls] = useState<any[]>([]);
+  const [waitingList, setWaitingList] = useState<any[]>([]);
+  const [waktu, setWaktu] = useState<string>('00:00:00');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Ganti URL ini dengan URL website Anda saat sudah online
-  const linkPendaftaran = "https://sistemantrian-bps.vercel.app/"; 
+  const linkPendaftaran = "https://sistemantrian-bps.vercel.app/";
 
   const fetchDisplayData = async () => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
+    if (!settings) return;
 
-    if (settings) {
-      const { data } = await supabase
-        .from('queues')
-        .select('*')
-        .gte('created_at', settings.last_reset_timestamp)
-        .eq('status', 'Dipanggil')
-        .order('called_at', { ascending: false })
-        .limit(4);
+    const { data: active } = await supabase
+      .from('queues')
+      .select('*')
+      .gte('created_at', settings.last_reset_timestamp)
+      .eq('status', 'Dipanggil')
+      .order('called_at', { ascending: false })
+      .limit(1)
+      .single();
 
-      if (data && data.length > 0) {
-        setCurrentCall(data[0]); 
-        setRecentCalls(data.slice(1)); 
-      } else {
-        setCurrentCall(null);
-        setRecentCalls([]);
+    const { data: waiting } = await supabase
+      .from('queues')
+      .select('*')
+      .gte('created_at', settings.last_reset_timestamp)
+      .is('status', null)
+      .order('created_at', { ascending: true })
+      .limit(3);
+
+    setCurrentCall(active || null);
+    setWaitingList(waiting || []);
+  };
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
       }
     }
   };
@@ -38,96 +54,154 @@ export default function DisplayTV() {
 
     const channel = supabase
       .channel('tv-display')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'queues' }, (payload) => {
-        if (payload.new.status === 'Dipanggil' || payload.new.status === 'Selesai') {
-          fetchDisplayData();
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
+        fetchDisplayData();
       })
       .subscribe();
 
+    const timer = setInterval(() => {
+      const now = new Date();
+      setWaktu(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(timer);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
 
   return (
-    <main className="min-h-screen bg-black flex text-white overflow-hidden font-sans relative">
-      
-      {/* KIRI: Informasi Antrian (Lebar 40%) */}
-      <div className="w-[40%] bg-blue-900 flex flex-col border-r-4 border-orange-500 shadow-2xl z-10">
+    <main className="min-h-screen bg-slate-900 flex overflow-hidden font-sans select-none relative">
+      <button
+        onClick={toggleFullScreen}
+        className="absolute top-6 right-6 z-50 bg-black/30 hover:bg-orange-500 backdrop-blur-md p-3 rounded-xl text-white transition-all duration-300 border border-white/20 shadow-xl"
+        title="Toggle Fullscreen"
+      >
+        {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
+      </button>
+
+      {/* KIRI: Panel Antrian (40%) - Menggunakan Gradasi Biru-Putih-Biru */}
+      <div className="w-[40%] bg-gradient-to-b from-[#e3f0fb] via-white to-[#daecf9] flex flex-col shadow-[20px_0_40px_rgba(0,0,0,0.3)] z-10 relative border-r border-slate-200">
         
-        {/* Area Antrian Utama */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-blue-800 to-blue-950">
-          <div className="flex items-center gap-3 mb-4 text-orange-400">
-            <Megaphone size={36} className="animate-bounce" />
-            <h2 className="text-2xl font-bold uppercase tracking-widest text-white">Nomor Antrian</h2>
+        <div className="bg-white px-6 py-5 flex items-center gap-4 border-b-[6px] border-orange-500 shrink-0 shadow-sm relative z-20">
+          <div className="flex-shrink-0">
+            <img src="/logoBPS.jpg" alt="Logo BPS" className="h-12 w-auto object-contain" />
           </div>
+          <div className="flex-1">
+            <h1 className="text-xl font-black text-blue-900 tracking-wide uppercase leading-tight">Badan Pusat Statistik</h1>
+            <p className="text-slate-500 text-[11px] font-bold tracking-[0.15em] uppercase">Kota Probolinggo</p>
+          </div>
+          <div className="text-2xl font-black text-blue-900 font-mono tracking-widest bg-blue-50/50 border border-blue-100 px-3 py-1.5 rounded-md shadow-sm">
+            {waktu}
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8 relative bg-transparent">
+          <h2 className="text-lg font-black text-blue-500 uppercase tracking-[0.2em] mb-2 relative z-10">
+            Sedang Dilayani
+          </h2>
           
-          <div className="bg-white rounded-3xl w-full py-10 shadow-[0_0_40px_rgba(249,115,22,0.3)] mb-6 border-b-8 border-orange-500">
-            <span className="text-[12rem] font-black leading-none tracking-tighter text-orange-600">
-              {currentCall ? currentCall.queue_number : '--'}
-            </span>
-          </div>
+          <span className="text-[11rem] leading-[0.9] font-black text-blue-900 tracking-tighter relative z-10 drop-shadow-sm">
+            {currentCall ? currentCall.queue_number : '--'}
+          </span>
           
           {currentCall && (
-            <div className="bg-orange-500 w-full p-6 rounded-2xl shadow-lg">
-              <p className="text-lg text-orange-100 mb-1 font-medium uppercase tracking-wider">Menuju Loket</p>
-              <p className="text-4xl font-extrabold text-white">{currentCall.service_type}</p>
+            <div className="mt-8 flex flex-col items-center gap-3 relative z-10 w-full px-8">
+              <span className="text-3xl font-black text-slate-800 uppercase tracking-wide text-center truncate w-full">
+                {currentCall.guest_name}
+              </span>
+              <span className="bg-orange-500 text-white px-8 py-2.5 rounded font-bold text-lg tracking-widest uppercase shadow-md">
+                {currentCall.service_type}
+              </span>
             </div>
           )}
         </div>
 
-        {/* History Panggilan */}
-        <div className="h-64 bg-slate-900 p-6 border-t border-slate-800">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Panggilan Sebelumnya</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {recentCalls.map((call, index) => (
-              <div key={index} className="bg-slate-800 p-4 rounded-xl text-center border border-slate-700">
-                <span className="block text-4xl font-bold text-orange-400">{call.queue_number}</span>
-                <span className="block text-xs text-slate-300 mt-1 truncate">{call.service_type}</span>
+        <div className="h-[35%] bg-white/40 backdrop-blur-sm border-t-2 border-blue-100 flex flex-col shadow-[0_-10px_20px_rgba(0,0,0,0.02)] relative z-10">
+          <div className="bg-blue-100/50 px-6 py-3.5 border-b border-blue-100 flex justify-between items-center shrink-0">
+            <h3 className="font-bold text-blue-900 text-xs uppercase tracking-widest">Antrian Berikutnya</h3>
+            <span className="bg-blue-900 text-white px-3 py-1 rounded font-bold text-xs tracking-wide shadow-sm">
+              {waitingList.length} Menunggu
+            </span>
+          </div>
+          
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {waitingList.length > 0 ? (
+              waitingList.map((q, idx) => (
+                <div key={idx} className="flex items-center px-6 py-4 bg-white/60 border-b border-blue-50/50 last:border-0 backdrop-blur-md">
+                  <div className="text-3xl font-black text-blue-900 w-20 shrink-0">
+                    {q.queue_number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-slate-800 uppercase text-lg truncate">{q.guest_name}</h4>
+                    <p className="text-orange-600 text-xs font-bold uppercase tracking-wide truncate mt-0.5">{q.service_type}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-slate-400">
+                <p className="font-semibold text-sm tracking-wide uppercase">Belum ada antrean</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* KANAN: Area Video & QR Code (Lebar 60%) */}
-      <div className="w-[60%] bg-slate-950 relative flex items-center justify-center">
-        
-        {/* Placeholder Video */}
-        <div className="text-center text-slate-700 flex flex-col items-center">
-          <MonitorPlay size={80} className="mb-4 opacity-30" />
-          <h2 className="text-2xl font-semibold opacity-50">Area Video Informasi BPS</h2>
-        </div>
+      <div className="w-[60%] bg-black relative flex flex-col">
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          className="absolute inset-0 w-full h-full object-cover opacity-90"
+        >
+          <source src="/video-bps.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/60 via-black/20 to-transparent pointer-events-none"></div>
 
-        {/* Kotak QR Code */}
-        <div className="absolute bottom-24 right-10 bg-white p-6 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col items-center border-4 border-orange-500 animate-[pulse_3s_ease-in-out_infinite] hover:scale-105 transition-transform">
-          <div className="flex items-center gap-2 mb-4 text-orange-600">
-            <QrCode size={28} />
-            <span className="font-extrabold text-xl tracking-tight">AMBIL ANTRIAN</span>
+        <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-20">
+          <div className="flex items-center gap-2 mb-3 text-blue-900">
+            <QrCode size={22} className="text-orange-600" />
+            <span className="font-black text-base tracking-tight uppercase">Ambil Antrian</span>
           </div>
-          <div className="bg-white p-2 rounded-xl border-2 border-gray-100">
+          <div className="bg-white p-2 rounded-lg border-2 border-slate-100">
             <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(linkPendaftaran)}&color=0f172a`} 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(linkPendaftaran)}&color=1e3a8a`} 
               alt="Scan QR" 
-              className="w-40 h-40 object-contain rounded-lg"
+              className="w-32 h-32 object-contain"
             />
           </div>
-          <div className="mt-4 bg-orange-100 w-full rounded-lg py-2">
-            <p className="text-orange-800 text-xs font-bold text-center">
-              SCAN MENGGUNAKAN HP
+          <div className="mt-3 bg-blue-50 w-full rounded py-1.5 border border-blue-100">
+            <p className="text-blue-800 text-[10px] font-bold text-center tracking-widest uppercase">
+              Scan Via HP
             </p>
           </div>
         </div>
 
-        {/* Running Text di bagian bawah */}
-        <div className="absolute bottom-0 w-full bg-orange-500 text-white p-4 text-2xl font-bold whitespace-nowrap overflow-hidden border-t-4 border-orange-600">
-          <div className="animate-[marquee_20s_linear_infinite] inline-block tracking-wide">
-            Selamat Datang di Badan Pusat Statistik (BPS) Kota Probolinggo • Melayani dengan Profesional, Integritas, dan Amanah •
+        <div className="absolute bottom-0 inset-x-0 h-16 bg-blue-900 border-t-4 border-orange-500 flex items-center overflow-hidden z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+          <div className="bg-orange-500 text-white font-black text-lg h-full px-8 flex items-center z-10 shadow-[10px_0_20px_rgba(0,0,0,0.5)] tracking-widest">
+            INFO
+          </div>
+          <div className="flex-1 whitespace-nowrap overflow-hidden flex items-center h-full border-l border-blue-900">
+            <div className="animate-[marquee_25s_linear_infinite] inline-block text-white font-semibold text-xl tracking-wide pl-[100%] pt-1">
+              Selamat Datang di Pelayanan Statistik Terpadu (PST) Badan Pusat Statistik Kota Probolinggo. Siap Melayani dengan Cepat, Tepat, dan Akurat. Silakan siapkan identitas Anda saat menuju loket.
+            </div>
           </div>
         </div>
       </div>
-      
+
+      <style jsx global>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
     </main>
   );
 }
