@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import { QrCode, Maximize, Minimize } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export default function DisplayTV() {
   const [waktu, setWaktu] = useState<string>('00:00:00');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
   const linkPendaftaran = "https://sistemantrian-bps.vercel.app/";
 
   const fetchDisplayData = async () => {
@@ -52,6 +53,12 @@ export default function DisplayTV() {
   useEffect(() => {
     fetchDisplayData();
 
+    if (videoRef.current) {
+      videoRef.current.play().catch((err) => {
+        console.log("Autoplay dicegah browser, mencoba memutar ulang:", err);
+      });
+    }
+
     const channel = supabase
       .channel('tv-display')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => {
@@ -78,7 +85,7 @@ export default function DisplayTV() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-900 flex overflow-hidden font-sans select-none relative">
+    <main className="h-[100dvh] w-screen bg-slate-900 flex overflow-hidden font-sans select-none relative">
       <button
         onClick={toggleFullScreen}
         className="absolute top-6 right-6 z-50 bg-black/30 hover:bg-orange-500 backdrop-blur-md p-3 rounded-xl text-white transition-all duration-300 border border-white/20 shadow-xl"
@@ -87,9 +94,7 @@ export default function DisplayTV() {
         {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
       </button>
 
-      {/* KIRI: Panel Antrian (40%) - Menggunakan Gradasi Biru-Putih-Biru */}
       <div className="w-[40%] bg-gradient-to-b from-[#e3f0fb] via-white to-[#daecf9] flex flex-col shadow-[20px_0_40px_rgba(0,0,0,0.3)] z-10 relative border-r border-slate-200">
-        
         <div className="bg-white px-6 py-5 flex items-center gap-4 border-b-[6px] border-orange-500 shrink-0 shadow-sm relative z-20">
           <div className="flex-shrink-0">
             <img src="/logoBPS.jpg" alt="Logo BPS" className="h-12 w-auto object-contain" />
@@ -154,14 +159,19 @@ export default function DisplayTV() {
         </div>
       </div>
 
-      <div className="w-[60%] bg-black relative flex flex-col">
+      <div className="w-[60%] bg-black relative flex flex-col overflow-hidden">
         <video 
+          ref={videoRef}
           autoPlay 
           loop 
           muted 
+          playsInline
+          preload="auto"
           className="absolute inset-0 w-full h-full object-cover opacity-90"
         >
+          {/* Diarahkan ke folder public dengan nama file yang benar */}
           <source src="/video-bps.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
         </video>
         <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/60 via-black/20 to-transparent pointer-events-none"></div>
 

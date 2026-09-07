@@ -6,12 +6,16 @@ export default function LoginScreen({ pin, setPin, loginError, setLoginError, ha
       <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
-      <div className="w-full max-w-sm px-6 mb-8 relative z-10 text-center">
-        <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">Admin PST</h1>
-        <p className="text-orange-50 text-sm font-medium drop-shadow-md">
-          Sistem Antrian Pelayanan Statistik Terpadu
-        </p>
-      </div>
+      <div className="w-full max-w-md px-6 mb-8 relative z-10 text-center">
+  <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight drop-shadow-lg">
+    Badan Pusat Statistik
+  </h1>
+  <h2 className="mt-1 text-lg sm:text-xl font-semibold text-white/90 tracking-wide">
+    Kota Probolinggo
+  </h2>
+  <div className="mx-auto mt-4 w-12 h-1 rounded-full bg-orange-500" />
+</div>
+
 
       <div className="w-full max-w-sm bg-[#fdfdfd] rounded-[2rem] px-6 pt-10 pb-8 shadow-[0_15px_40px_rgba(0,0,0,0.4)] relative z-20">
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1.5 shadow-[0_8px_20px_rgba(249,115,22,0.15)] border border-orange-50">
