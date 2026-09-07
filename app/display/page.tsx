@@ -95,7 +95,7 @@ export default function DisplayTV() {
             <img src="/logoBPS.jpg" alt="Logo BPS" className="h-12 w-auto object-contain" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-black text-blue-900 tracking-wide uppercase leading-tight">Badan Pusat Statistik</h1>
+            <h1 className="text-sm font-black text-blue-900 tracking-wide uppercase leading-tight">Badan Pusat Statistik</h1>
             <p className="text-slate-500 text-[11px] font-bold tracking-[0.15em] uppercase">Kota Probolinggo</p>
           </div>
           <div className="text-2xl font-black text-blue-900 font-mono tracking-widest bg-blue-50/50 border border-blue-100 px-3 py-1.5 rounded-md shadow-sm">

@@ -12,9 +12,10 @@ export default function StatusAntrian() {
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
   const [skmSubmitted, setSkmSubmitted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // 1. Ambil data awal
+    setMounted(true);
     const fetchQueue = async () => {
       const { data, error } = await supabase
         .from('queues')
@@ -28,7 +29,6 @@ export default function StatusAntrian() {
 
     fetchQueue();
 
-    // 2. Berlangganan perubahan Real-time (Socket)
     const channel = supabase
       .channel(`queue-${id}`)
       .on(
@@ -53,79 +53,105 @@ export default function StatusAntrian() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gray-50">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+      <div className="min-h-screen bg-gradient-to-b from-orange-500 to-orange-700 flex justify-center items-center font-sans">
+        <Loader2 className="animate-spin text-white" size={48} />
       </div>
     );
   }
 
   if (!queue) {
-    return <div className="text-center mt-20 text-red-500">Data antrian tidak ditemukan.</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-500 to-orange-700 flex justify-center items-center font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl text-center">
+          <p className="text-red-500 font-bold text-lg">Data antrian tidak ditemukan.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-sm text-center">
-        <p className="text-sm font-medium text-gray-500 mb-2">Nomor Antrian Anda</p>
-        <h1 className="text-6xl font-black text-blue-600 mb-6 tracking-tighter">
-          {queue.queue_number}
-        </h1>
+    <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
+      <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100 text-left">
-          <div className="flex items-center gap-3 mb-2">
-            <User size={18} className="text-gray-400" />
-            <span className="font-semibold text-gray-700">{queue.guest_name}</span>
+      <div className={`w-full max-w-sm px-6 pt-12 pb-24 relative z-10 text-center transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'}`}>
+        <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">Status Antrian</h1>
+        <p className="text-orange-50 text-sm font-medium leading-relaxed drop-shadow-md">
+          Sistem Antrian Pelayanan Statistik Terpadu (PST) BPS Kota Probolinggo.
+        </p>
+      </div>
+
+      <div className={`w-full max-w-sm bg-[#fdfdfd] sm:rounded-[2rem] rounded-t-[2rem] px-6 pt-14 pb-8 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-16 transition-all duration-700 delay-150 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-32 opacity-0'}`}>
+        
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1.5 shadow-[0_8px_20px_rgba(249,115,22,0.15)] border border-orange-50">
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/logoBPS.jpg" alt="Logo BPS" className="h-10 w-auto object-contain" />
           </div>
-          <p className="text-sm text-gray-500 pl-7">Layanan: <span className="font-medium text-gray-800">{queue.service_type}</span></p>
         </div>
 
-        {/* Indikator Status */}
-        <div className="mb-6">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-semibold">Status Saat Ini</p>
-          {queue.status === 'Menunggu' && (
-            <div className="inline-block bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold animate-pulse">
-              Sedang Menunggu...
+        <div className="text-center mt-2">
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Nomor Antrian Anda</p>
+          <h1 className="text-7xl font-black text-[#0f172a] mb-6 tracking-tighter">
+            {queue.queue_number}
+          </h1>
+
+          <div className="bg-slate-50 rounded-2xl p-5 mb-6 border border-slate-100 text-left">
+            <div className="flex items-center gap-3 mb-2 border-b border-slate-200 pb-2">
+              <User size={18} className="text-slate-400" />
+              <span className="font-bold text-slate-800 text-base uppercase">{queue.guest_name}</span>
+            </div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-2 pl-7">
+              Layanan: <span className="text-orange-600">{queue.service_type}</span>
+            </p>
+          </div>
+
+          <div className="mb-2">
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-bold">Status Saat Ini</p>
+            {queue.status === 'Menunggu' && (
+              <div className="inline-block bg-slate-100 text-slate-600 px-6 py-3 rounded-xl font-bold border border-slate-200 uppercase tracking-widest text-sm shadow-sm animate-pulse">
+                Menunggu...
+              </div>
+            )}
+            {queue.status === 'Dipanggil' && (
+              <div className="inline-block bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold border border-blue-200 uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-bounce">
+                Menuju Loket!
+              </div>
+            )}
+            {queue.status === 'Selesai' && (
+              <div className="inline-block bg-emerald-50 text-emerald-600 px-6 py-3 rounded-xl font-bold border border-emerald-200 uppercase tracking-widest text-sm shadow-sm">
+                Pelayanan Selesai
+              </div>
+            )}
+          </div>
+
+          {queue.status === 'Selesai' && !skmSubmitted && (
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Survei Kepuasan</h3>
+              <p className="text-[11px] text-slate-500 mb-4 font-semibold uppercase tracking-widest">Berikan Penilaian Anda</p>
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => submitSKM(star)}
+                    className="hover:scale-110 transition-transform focus:outline-none"
+                  >
+                    <Star
+                      size={36}
+                      className={`transition-colors ${rating >= star ? 'fill-yellow-400 text-yellow-400 drop-shadow-sm' : 'text-slate-200 fill-slate-50'}`}
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-          {queue.status === 'Dipanggil' && (
-            <div className="inline-block bg-green-100 text-green-700 px-6 py-3 rounded-full font-bold text-lg shadow-sm border border-green-200">
-              Silakan Menuju Loket!
-            </div>
-          )}
-          {queue.status === 'Selesai' && (
-            <div className="inline-block bg-gray-100 text-gray-600 px-4 py-2 rounded-full font-bold">
-              Pelayanan Selesai
+
+          {skmSubmitted && (
+            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-widest">
+              <Star size={24} className="fill-emerald-600" />
+              Terima Kasih!
             </div>
           )}
         </div>
-
-        {/* Form SKM (Hanya muncul jika status Selesai) */}
-        {queue.status === 'Selesai' && !skmSubmitted && (
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <h3 className="font-bold text-gray-800 mb-1">Bagaimana pelayanan kami?</h3>
-            <p className="text-xs text-gray-500 mb-4">Berikan penilaian Anda</p>
-            <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => submitSKM(star)}
-                  className="hover:scale-110 transition-transform"
-                >
-                  <Star
-                    size={32}
-                    className={rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {skmSubmitted && (
-          <div className="mt-8 pt-6 border-t border-gray-100 text-green-600 font-medium text-sm">
-            Terima kasih atas penilaian Anda!
-          </div>
-        )}
       </div>
     </main>
   );

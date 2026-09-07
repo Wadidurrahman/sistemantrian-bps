@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { User, Loader2, Building2, MessageSquare, AlertTriangle } from 'lucide-react';
+import { User, Loader2, MessageSquare, AlertTriangle } from 'lucide-react';
 
 export default function PendaftaranTamu() {
   const router = useRouter();
@@ -52,7 +52,6 @@ export default function PendaftaranTamu() {
 
   return (
     <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
-      
       <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
@@ -66,12 +65,12 @@ export default function PendaftaranTamu() {
       <div className={`w-full max-w-sm bg-[#fdfdfd] sm:rounded-[2rem] rounded-t-[2rem] px-6 pt-14 pb-8 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-16 transition-all duration-700 delay-150 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-32 opacity-0'}`}>
         
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1.5 shadow-[0_8px_20px_rgba(249,115,22,0.15)] border border-orange-50">
-          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center">
-            <Building2 size={32} className="text-orange-500" />
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/logoBPS.jpg" alt="Logo BPS" className="h-10 w-auto object-contain" />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 flex flex-col h-full">
+        <form onSubmit={handleSubmit} className="space-y-4 flex flex-col h-full mt-2">
           {error && (
             <div className="p-3 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 text-xs font-bold border border-red-100 animate-pulse">
               <AlertTriangle size={16} className="shrink-0" /> 
@@ -94,8 +93,8 @@ export default function PendaftaranTamu() {
           </div>
 
           <div className="space-y-2 pt-1">
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1 mb-2">
-              Silakan Pilih Layanan:
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1 mb-2 text-left">
+              Silakan Pilih Layanan
             </label>
             <div className="flex flex-col gap-2.5">
               {services.map((item) => (
