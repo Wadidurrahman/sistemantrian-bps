@@ -7,7 +7,8 @@ import { User, Phone, Mail, Building, Target, Calendar, CheckCircle2, Loader2 } 
 export default function BukuTamu({ onBack }: { onBack: () => void }) {
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [view, setView] = useState<'form' | 'waiting' | 'success'>('form');
+  const [regId, setRegId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -23,12 +24,28 @@ export default function BukuTamu({ onBack }: { onBack: () => void }) {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (view === 'waiting' && regId) {
+      const channel = supabase.channel('cek-buku-tamu')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations', filter: `id=eq.${regId}` }, (payload) => {
+          if (payload.new.status === 'Selesai') {
+            setView('success');
+            if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+              try { navigator.vibrate([300, 150, 300, 150, 500]); } catch(e){}
+            }
+            try { new Audio('/chime.mp3').play(); } catch(e){}
+          }
+        }).subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [view, regId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.from('registrations').insert([
+      const { data, error } = await supabase.from('registrations').insert([
         {
           form_type: 'Buku Tamu',
           payload: {
@@ -42,14 +59,11 @@ export default function BukuTamu({ onBack }: { onBack: () => void }) {
           },
           status: 'Menunggu'
         }
-      ]);
+      ]).select().single();
 
       if (error) throw error;
-      
-      setIsSuccess(true);
-      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-      }
+      setRegId(data.id);
+      setView('waiting');
     } catch (err: any) {
       alert('Gagal menyimpan data: ' + err.message);
     } finally {
@@ -61,14 +75,26 @@ export default function BukuTamu({ onBack }: { onBack: () => void }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  if (isSuccess) {
+  if (view === 'waiting') {
     return (
-      <main className="min-h-[100dvh] bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center justify-center p-6 font-sans">
+      <main className="min-h-dvh bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center justify-center p-6 font-sans">
+        <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 flex flex-col items-center gap-4">
+          <Loader2 size={60} className="text-orange-500 animate-spin" />
+          <h2 className="text-xl font-black text-slate-800">Sedang Diproses</h2>
+          <p className="text-slate-500 text-sm font-medium">Petugas sedang memverifikasi data kunjungan Anda. Mohon tunggu sebentar di tempat duduk Anda...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (view === 'success') {
+    return (
+      <main className="min-h-dvh bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center justify-center p-6 font-sans">
         <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95">
-          <CheckCircle2 size={80} className="mx-auto text-emerald-500 mb-4" />
+          <CheckCircle2 size={80} className="mx-auto text-emerald-500 mb-4 animate-bounce" />
           <h2 className="text-xl font-black text-slate-800 mb-2">Terima Kasih!</h2>
           <p className="text-sm text-slate-500 mb-6 font-medium">
-            Data kunjungan Anda telah berhasil dicatat dalam Buku Tamu BPS Kota Probolinggo.
+            Data kunjungan Anda telah berhasil dicatat dan diverifikasi.
           </p>
           <button 
             onClick={onBack}
@@ -82,7 +108,7 @@ export default function BukuTamu({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
+    <main className="min-h-dvh bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
       <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
 
       <div className={`w-full max-w-sm px-6 pt-12 pb-24 relative z-10 text-left transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'}`}>
@@ -175,7 +201,6 @@ export default function BukuTamu({ onBack }: { onBack: () => void }) {
             </button>
           </div>
         </form>
-
       </div>
     </main>
   );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
-import { ArrowLeft, User, Users, Briefcase, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Users, Briefcase, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function LayananRegistrasi({ type, onBack }: { type?: string, onBack: () => void }) {
   const [mounted, setMounted] = useState(false);
@@ -33,7 +33,10 @@ export default function LayananRegistrasi({ type, onBack }: { type?: string, onB
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations', filter: `id=eq.${regId}` }, (payload) => {
           if (payload.new.status === 'Selesai') {
             setView('success');
-            if (typeof window !== 'undefined' && 'vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 500]);
+            if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+              try { navigator.vibrate([300, 150, 300, 150, 500]); } catch(e){}
+            }
+            try { new Audio('/chime.mp3').play(); } catch(e){}
           }
         }).subscribe();
       return () => { supabase.removeChannel(channel); };
@@ -62,7 +65,7 @@ export default function LayananRegistrasi({ type, onBack }: { type?: string, onB
   };
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
+    <main className="min-h-dvh bg-gradient-to-b from-[#ea580c] to-[#c2410c] flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
       <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
@@ -91,7 +94,7 @@ export default function LayananRegistrasi({ type, onBack }: { type?: string, onB
 
           {view === 'success' && (
             <div className="flex flex-col items-center justify-center h-full py-10 space-y-4">
-              <CheckCircle2 size={70} className="text-orange-500" />
+              <CheckCircle2 size={70} className="text-orange-500 animate-bounce" />
               <h2 className="text-xl font-black text-slate-800">Selesai!</h2>
               <p className="text-slate-500 text-sm text-center font-medium">Petugas telah memproses data Anda.</p>
               <button onClick={onBack} className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl mt-4 text-sm tracking-widest uppercase shadow-lg active:scale-95">Kembali ke Beranda</button>
