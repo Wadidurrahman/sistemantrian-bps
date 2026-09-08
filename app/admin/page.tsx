@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import LoginScreen from '@/components/admin/LoginScreen';
 import AdminHeader from '@/components/admin/AdminHeader';
 import StatsCards from '@/components/admin/StatsCards';
 import QueueTable from '@/components/admin/QueueTable';
 import AdminFooter from '@/components/admin/AdminFooter';
+import DisplaySettingsModal from '@/components/admin/DisplaySettingsModal';
 import { AlertTriangle, X, CheckSquare, Copy, BellRing } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -23,6 +24,8 @@ export default function AdminDashboard() {
   const [latestReg, setLatestReg] = useState<any>(null);
   const [showNotifPopup, setShowNotifPopup] = useState(false);
   const [copiedStatus, setCopiedStatus] = useState<string | null>(null);
+
+  const [showDisplayModal, setShowDisplayModal] = useState(false);
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('bps_admin_auth');
@@ -116,7 +119,7 @@ export default function AdminDashboard() {
     });
     table += '</tr></thead><tbody>';
 
-    [...queues].reverse().forEach((q, index) => {
+    ([...queues]).reverse().forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
       const bintang = q.status === 'Selesai' ? '⭐⭐⭐⭐⭐' : 'Belum Selesai';
@@ -221,6 +224,7 @@ export default function AdminDashboard() {
         handleReset={() => setShowResetModal(true)} 
         handleExportCSV={handleExportExcel} 
         getCurrentDate={getCurrentDate} 
+        onOpenSettings={() => setShowDisplayModal(true)}
         onLogout={handleLogout} 
       />
 
@@ -307,6 +311,11 @@ export default function AdminDashboard() {
       </main>
       
       <AdminFooter />
+
+      <DisplaySettingsModal 
+        isOpen={showDisplayModal} 
+        onClose={() => setShowDisplayModal(false)} 
+      />
 
       {showNotifPopup && latestReg && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">

@@ -26,8 +26,12 @@ export default function DisplayTV() {
   }, []);
 
   const fetchDisplayData = async () => {
-    const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
+    const { data: settings } = await supabase.from('app_settings').select('*').eq('id', 1).single();
     if (!settings) return;
+
+    if (settings.slideshow_urls && settings.slideshow_urls.length > 0) {
+      setSlides(settings.slideshow_urls);
+    }
 
     const { data: activeKS } = await supabase
       .from('queues')
@@ -137,7 +141,7 @@ export default function DisplayTV() {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-800">Meja 1 : Konsultasi Statistik</h2>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Nomor Antrean:</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-1">Sedang Dilayani</p>
             <div className="text-7xl font-black text-blue-900 font-mono tracking-tighter mb-2">
               {currentCallKS ? currentCallKS.queue_number : '---'}
             </div>
@@ -150,9 +154,9 @@ export default function DisplayTV() {
           <div className="flex-1 flex flex-col justify-center items-center pt-4">
             <div className="flex items-center justify-center gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-orange-600">Meja 2 : Pengaduan Pengaduan</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-orange-600">Meja 2 : Pelayanan Pengaduan</h2>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Nomor Antrean:</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-600 mb-1">Sedang Dilayani</p>
             <div className="text-7xl font-black text-orange-600 font-mono tracking-tighter mb-2">
               {currentCallPG ? currentCallPG.queue_number : '---'}
             </div>
@@ -193,13 +197,20 @@ export default function DisplayTV() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-full h-full relative">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/20 via-transparent to-transparent z-10 pointer-events-none"></div>
-            <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400">
-              <div className="text-center">
-                <ImageIcon size={64} className="mx-auto mb-3 opacity-40 animate-pulse" />
-                <p className="text-sm font-bold uppercase tracking-widest">Slideshow Banner Informasi BPS</p>
-                <p className="text-[10px] text-slate-500 mt-1">Gambar aktif slide ke-{currentSlide + 1}</p>
+            {slides.length > 0 && slides[currentSlide] ? (
+              <img 
+                src={slides[currentSlide]} 
+                alt="Slideshow Banner" 
+                className="w-full h-full object-cover transition-all duration-700"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400">
+                <div className="text-center">
+                  <ImageIcon size={64} className="mx-auto mb-3 opacity-40 animate-pulse" />
+                  <p className="text-sm font-bold uppercase tracking-widest">Slideshow Banner Informasi BPS</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
