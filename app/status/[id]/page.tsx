@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Loader2, User, Star } from 'lucide-react';
+import { Loader2, User, Star, CheckCircle2, Clock, Volume2 } from 'lucide-react';
 
 export default function StatusAntrian() {
   const params = useParams();
@@ -35,7 +35,16 @@ export default function StatusAntrian() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'queues', filter: `id=eq.${id}` },
         (payload) => {
-          setQueue(payload.new);
+          const updated = payload.new;
+          setQueue(updated);
+
+          if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+            if (updated.status === 'Dipanggil') {
+              navigator.vibrate([400, 200, 400]);
+            } else if (updated.status === 'Selesai') {
+              navigator.vibrate([800]);
+            }
+          }
         }
       )
       .subscribe();
@@ -62,8 +71,8 @@ export default function StatusAntrian() {
   if (!queue) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-orange-500 to-orange-700 flex justify-center items-center font-sans">
-        <div className="bg-white p-8 rounded-3xl shadow-xl text-center">
-          <p className="text-red-500 font-bold text-lg">Data antrian tidak ditemukan.</p>
+        <div className="bg-white p-8 rounded-sm shadow-xl text-center border border-slate-200">
+          <p className="text-red-500 font-bold text-sm uppercase tracking-widest">Data antrian tidak ditemukan.</p>
         </div>
       </div>
     );
@@ -81,7 +90,7 @@ export default function StatusAntrian() {
         </p>
       </div>
 
-      <div className={`w-full max-w-sm bg-[#fdfdfd] sm:rounded-[2rem] rounded-t-[2rem] px-6 pt-14 pb-8 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-16 transition-all duration-700 delay-150 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-32 opacity-0'}`}>
+      <div className={`w-full max-w-sm bg-[#fdfdfd] sm:rounded-sm rounded-t-sm px-6 pt-14 pb-8 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-16 transition-all duration-700 delay-150 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-32 opacity-0'}`}>
         
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1.5 shadow-[0_8px_20px_rgba(249,115,22,0.15)] border border-orange-50">
           <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center overflow-hidden">
@@ -95,7 +104,7 @@ export default function StatusAntrian() {
             {queue.queue_number}
           </h1>
 
-          <div className="bg-slate-50 rounded-2xl p-5 mb-6 border border-slate-100 text-left">
+          <div className="bg-slate-50 rounded-sm p-5 mb-6 border border-slate-200 text-left">
             <div className="flex items-center gap-3 mb-2 border-b border-slate-200 pb-2">
               <User size={18} className="text-slate-400" />
               <span className="font-bold text-slate-800 text-base uppercase">{queue.guest_name}</span>
@@ -103,29 +112,32 @@ export default function StatusAntrian() {
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-2 pl-7">
               Layanan: <span className="text-orange-600">{queue.service_type}</span>
             </p>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 pl-7">
+              Meja: <span className="text-slate-800">{queue.service_type === 'Konsultasi Statistik' ? 'MEJA 1' : 'MEJA 2'}</span>
+            </p>
           </div>
 
           <div className="mb-2">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-bold">Status Saat Ini</p>
             {queue.status === 'Menunggu' && (
-              <div className="inline-block bg-slate-100 text-slate-600 px-6 py-3 rounded-xl font-bold border border-slate-200 uppercase tracking-widest text-sm shadow-sm animate-pulse">
-                Menunggu...
+              <div className="inline-block bg-amber-50 text-amber-800 px-6 py-3 rounded-sm font-bold border border-amber-200 uppercase tracking-widest text-sm shadow-sm">
+                <Clock size={16} className="inline mr-2" /> Menunggu Giliran
               </div>
             )}
             {queue.status === 'Dipanggil' && (
-              <div className="inline-block bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold border border-blue-200 uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-bounce">
-                Menuju Loket!
+              <div className="inline-block bg-blue-50 text-blue-800 px-6 py-3 rounded-sm font-bold border border-blue-200 uppercase tracking-widest text-sm shadow-sm animate-bounce">
+                <Volume2 size={16} className="inline mr-2" /> Silakan Menuju Meja!
               </div>
             )}
             {queue.status === 'Selesai' && (
-              <div className="inline-block bg-emerald-50 text-emerald-600 px-6 py-3 rounded-xl font-bold border border-emerald-200 uppercase tracking-widest text-sm shadow-sm">
-                Pelayanan Selesai
+              <div className="inline-block bg-emerald-50 text-emerald-700 px-6 py-3 rounded-sm font-bold border border-emerald-200 uppercase tracking-widest text-sm shadow-sm">
+                <CheckCircle2 size={16} className="inline mr-2" /> Pelayanan Selesai
               </div>
             )}
           </div>
 
           {queue.status === 'Selesai' && !skmSubmitted && (
-            <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="mt-8 pt-6 border-t border-slate-200">
               <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Survei Kepuasan</h3>
               <p className="text-[11px] text-slate-500 mb-4 font-semibold uppercase tracking-widest">Berikan Penilaian Anda</p>
               <div className="flex justify-center gap-2">
@@ -146,9 +158,9 @@ export default function StatusAntrian() {
           )}
 
           {skmSubmitted && (
-            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-widest">
+            <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-widest">
               <Star size={24} className="fill-emerald-600" />
-              Terima Kasih!
+              Terima Kasih Atas Penilaian Anda!
             </div>
           )}
         </div>
