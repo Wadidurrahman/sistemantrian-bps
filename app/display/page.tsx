@@ -12,7 +12,13 @@ export default function DisplayTV() {
   const [videoError, setVideoError] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const linkPendaftaran = "https://sistemantrian-bps.vercel.app/";
+  const [qrLink, setQrLink] = useState<string>('');
+
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    setQrLink(`${window.location.protocol}//${window.location.host}`);
+  }
+}, []);
   const videoStorageUrl = "https://ffljuwtbdszmarcokmvh.supabase.co/storage/v1/object/public/display-media/video-bps.mov";
 
   const fetchDisplayData = async () => {
@@ -209,10 +215,10 @@ export default function DisplayTV() {
           </div>
           <div className="bg-white p-2 rounded-lg border-2 border-slate-100">
             <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(linkPendaftaran)}&color=1e3a8a`} 
-              alt="Scan QR" 
-              className="w-32 h-32 object-contain"
-            />
+  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrLink)}&color=1e3a8a`} 
+  alt="Scan QR" 
+  className="w-32 h-32 object-contain"
+/>
           </div>
           <div className="mt-3 bg-blue-50 w-full rounded py-1.5 border border-blue-100">
             <p className="text-blue-800 text-[10px] font-bold text-center tracking-widest uppercase">
