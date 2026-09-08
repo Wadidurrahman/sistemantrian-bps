@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import MenuUtama from './../components/tamu/MenuUtama';
-import FormAntrean from './../components/tamu/MenuUtama';
+import FormAntrean from './../components/tamu/FormAntrean';
 import LayananRegistrasi from './../components/tamu/LayananRegistrasi';
 import FormBukuTamu from './../components/tamu/FormAntrean';
 

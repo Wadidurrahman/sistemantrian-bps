@@ -205,7 +205,7 @@ export default function DisplayTV() {
         <div className="absolute bottom-24 right-10 bg-white p-5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center border-[4px] border-orange-500 z-30">
           <div className="flex items-center gap-2 mb-3 text-blue-900">
             <QrCode size={22} className="text-orange-600" />
-            <span className="font-black text-base tracking-tight uppercase">Ambil Antrian</span>
+            <span className="font-black text-base tracking-tight uppercase">Scan Disini</span>
           </div>
           <div className="bg-white p-2 rounded-lg border-2 border-slate-100">
             <img 

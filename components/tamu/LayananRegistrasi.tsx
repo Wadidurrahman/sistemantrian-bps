@@ -43,7 +43,7 @@ export default function LayananRegistrasi({ onBack }: { onBack: () => void }) {
   const handleSubmit = async (e: React.FormEvent, type: 'Individu' | 'Group' | 'Layanan Lain') => {
     e.preventDefault();
     setIsLoading(true);
-    let payload = indData;
+    let payload: typeof indData | typeof grpData | typeof lainData = indData;
     if (type === 'Group') payload = grpData;
     if (type === 'Layanan Lain') payload = lainData;
 
