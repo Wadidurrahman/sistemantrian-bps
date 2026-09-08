@@ -32,18 +32,25 @@ export default function MenuUtama({ onNavigate }: { onNavigate: (view: 'antrean'
             PILIH MENU LAYANAN
           </label>
           <div className="flex flex-col gap-3">
+            
+            {/* Tombol 1: Ambil Antrean -> Memanggil state 'antrean' */}
             <button onClick={() => onNavigate('antrean')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
               <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><ClipboardList size={18} /></div>
               <div className="text-left"><p className="font-bold text-sm text-slate-800">Ambil Antrean</p><p className="text-[10px] text-slate-500">Dapatkan nomor antrean.</p></div>
             </button>
+
+            {/* Tombol 2: Isi Buku Tamu -> Memanggil state 'bukutamu' */}
             <button onClick={() => onNavigate('bukutamu')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
               <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><BookOpen size={18} /></div>
               <div className="text-left"><p className="font-bold text-sm text-slate-800">Isi Buku Tamu</p><p className="text-[10px] text-slate-500">Catat kunjungan resmi Anda.</p></div>
             </button>
+
+            {/* Tombol 3: Layanan Registrasi -> Memanggil state 'registrasi' */}
             <button onClick={() => onNavigate('registrasi')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
               <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><UserCheck size={18} /></div>
               <div className="text-left"><p className="font-bold text-sm text-slate-800">Layanan Registrasi</p><p className="text-[10px] text-slate-500">Pendaftaran akun & instansi.</p></div>
             </button>
+            
           </div>
         </div>
       </div>

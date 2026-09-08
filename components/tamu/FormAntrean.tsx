@@ -2,49 +2,48 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
-import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Loader2, MessageSquare, AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
-export default function FormBukuTamu({ onBack }: { onBack: () => void }) {
-  const [mounted, setMounted] = useState(false);
-  const [view, setView] = useState<'form' | 'waiting' | 'success'>('form');
+export default function FormAntrean({ onBack }: { onBack: () => void }) {
+  const [nama, setNama] = useState('');
+  const [layanan, setLayanan] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [regId, setRegId] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    'Tanggal Kunjungan': new Date().toISOString().split('T')[0],
-    'Nama': '',
-    'Nomor HP/WA': '',
-    'Email': '',
-    'Jenis Kelamin': 'Laki - Laki',
-    'Asal Instansi': '',
-    'Tujuan': ''
-  });
+  const [error, setError] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [status, setStatus] = useState<'form' | 'success'>('form');
+  const [nomorAntrean, setNomorAntrean] = useState('');
 
   useEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
-    if (view === 'waiting' && regId) {
-      const channel = supabase.channel('cek-status-bukutamu')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations', filter: `id=eq.${regId}` }, (payload) => {
-          if (payload.new.status === 'Selesai') {
-            setView('success');
-            if (typeof window !== 'undefined' && 'vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 500]);
-          }
-        }).subscribe();
-      return () => { supabase.removeChannel(channel); };
-    }
-  }, [view, regId]);
+  const services = [
+    { id: 'Konsultasi Statistik', icon: MessageSquare },
+    { id: 'Pelayanan Pengaduan', icon: AlertTriangle }
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.from('registrations').insert([{ form_type: 'Buku Tamu', payload: formData }]).select().single();
-      if (!error && data) { setRegId(data.id); setView('waiting'); }
-    } finally { setIsLoading(false); }
-  };
+    if (!layanan) { setError('Silakan pilih layanan terlebih dahulu.'); return; }
+    setIsLoading(true); setError('');
 
-  const handleChange = (e: any) => setFormData({...formData, [e.target.name]: e.target.value});
+    try {
+      const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
+      const { data: queues } = await supabase.from('queues').select('queue_number').gte('created_at', settings?.last_reset_timestamp).order('created_at', { ascending: false }).limit(1);
+
+      let nextNumber = 1;
+      if (queues && queues.length > 0) nextNumber = parseInt(queues[0].queue_number) + 1;
+      const numStr = nextNumber.toString().padStart(2, '0');
+
+      const { error: insertError } = await supabase.from('queues').insert([{ queue_number: numStr, guest_name: nama, service_type: layanan }]);
+      if (insertError) throw insertError;
+      
+      setNomorAntrean(numStr);
+      setStatus('success');
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
@@ -52,12 +51,12 @@ export default function FormBukuTamu({ onBack }: { onBack: () => void }) {
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
       <div className={`w-full max-w-sm px-6 pt-12 pb-24 relative z-10 text-left transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'}`}>
-        <button onClick={view === 'form' ? onBack : () => setView('form')} className="flex items-center gap-2 text-white/90 hover:text-white font-bold text-sm mb-4">
+        <button onClick={onBack} className="flex items-center gap-2 text-white/90 hover:text-white font-bold text-sm mb-4">
           <ArrowLeft size={16} /> Kembali
         </button>
-        <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">Buku Tamu</h1>
+        <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">Welcome!</h1>
         <p className="text-orange-50 text-sm font-medium leading-relaxed drop-shadow-md">
-          Pencatatan kunjungan BPS Kota Probolinggo.
+          Sistem Antrian Pelayanan Statistik Terpadu (PST) BPS Kota Probolinggo.
         </p>
       </div>
 
@@ -68,40 +67,48 @@ export default function FormBukuTamu({ onBack }: { onBack: () => void }) {
           </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[65vh] pb-4 px-1 custom-scrollbar">
-          {view === 'waiting' && (
-            <div className="flex flex-col items-center justify-center h-full py-10 space-y-4">
-              <Loader2 size={60} className="text-orange-500 animate-spin" />
-              <h2 className="text-xl font-black text-slate-800">Sedang Diproses</h2>
-              <p className="text-slate-500 text-sm text-center font-medium">Data masuk ke sistem.<br/>Mohon tunggu sebentar...</p>
+        {status === 'success' ? (
+          <div className="flex flex-col items-center justify-center h-full pt-4 space-y-6">
+            <CheckCircle2 size={70} className="text-orange-500" />
+            <div className="text-center">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nomor Antrean Anda</h2>
+              <div className="text-7xl font-black text-slate-800">{nomorAntrean}</div>
             </div>
-          )}
-
-          {view === 'success' && (
-            <div className="flex flex-col items-center justify-center h-full py-10 space-y-4">
-              <CheckCircle2 size={70} className="text-orange-500" />
-              <h2 className="text-xl font-black text-slate-800">Selesai!</h2>
-              <p className="text-slate-500 text-sm text-center font-medium">Buku Tamu berhasil dikonfirmasi.</p>
-              <button onClick={onBack} className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl mt-4 text-sm tracking-widest uppercase shadow-lg">Kembali ke Beranda</button>
+            <button onClick={onBack} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl mt-4 text-sm tracking-widest uppercase shadow-lg">Selesai</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 flex flex-col h-full mt-2">
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 text-xs font-bold border border-red-100 animate-pulse">
+                <AlertTriangle size={16} className="shrink-0" /> <p>{error}</p>
+              </div>
+            )}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-transform group-focus-within:scale-110">
+                <User size={18} className="text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+              </div>
+              <input type="text" required value={nama} onChange={(e) => setNama(e.target.value)} className="pl-11 w-full rounded-xl border-2 border-slate-100 py-3.5 px-4 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 bg-white font-bold text-slate-800 text-sm placeholder:font-medium placeholder:text-slate-400" placeholder="Masukkan Nama Anda" />
             </div>
-          )}
-
-          {view === 'form' && (
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 pt-2">
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Tanggal Kunjungan</label><input type="date" required name="Tanggal Kunjungan" value={formData['Tanggal Kunjungan']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Nama Lengkap</label><input type="text" required name="Nama" value={formData['Nama']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Nomor HP/WA</label><input type="tel" required name="Nomor HP/WA" value={formData['Nomor HP/WA']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Email</label><input type="email" required name="Email" value={formData['Email']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Jenis Kelamin</label><select name="Jenis Kelamin" value={formData['Jenis Kelamin']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800"><option>Laki - Laki</option><option>Perempuan</option></select></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Asal Instansi</label><input type="text" required name="Asal Instansi" value={formData['Asal Instansi']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              <div><label className="text-[11px] font-bold text-slate-500 uppercase">Tujuan</label><input type="text" required name="Tujuan" value={formData['Tujuan']} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-orange-500 text-sm font-bold text-slate-800" /></div>
-              
-              <button type="submit" disabled={isLoading} className="mt-4 w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold py-3.5 rounded-xl shadow-[0_8px_20px_-6px_rgba(249,115,22,0.6)] flex justify-center">
-                {isLoading ? <Loader2 size={20} className="animate-spin" /> : 'KIRIM DATA'}
+            
+            <div className="space-y-2 pt-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1 mb-2 text-left">SILAKAN PILIH LAYANAN</label>
+              <div className="flex flex-col gap-2.5">
+                {services.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setLayanan(item.id)} className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 ${layanan === item.id ? 'border-orange-500 bg-orange-50/80 text-orange-700 shadow-sm transform scale-[1.01]' : 'border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`p-2 rounded-lg transition-colors ${layanan === item.id ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-400'}`}><item.icon size={16} /></div>
+                    <span className={`font-bold text-sm ${layanan === item.id ? 'text-orange-700' : 'text-slate-600'}`}>{item.id}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="pt-6 mt-auto sm:mt-4">
+              <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold py-3.5 rounded-xl shadow-[0_8px_20px_-6px_rgba(249,115,22,0.6)] hover:shadow-[0_12px_25px_-6px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2 disabled:opacity-70 text-sm tracking-widest uppercase">
+                {isLoading ? <Loader2 size={20} className="animate-spin" /> : 'AMBIL ANTRIAN'}
               </button>
-            </form>
-          )}
-        </div>
+            </div>
+          </form>
+        )}
       </div>
     </main>
   );

@@ -1,65 +1,74 @@
-import { Megaphone, Volume2, CheckCircle } from 'lucide-react';
+import { Megaphone, Volume2, CheckSquare } from 'lucide-react';
 
 export default function QueueTable({ loading, queues, handlePanggil, handlePanggilUlang, handleSelesai }: any) {
   return (
-    <div className="flex-1 bg-white border-2 border-slate-100 rounded-[1.5rem] shadow-sm flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b-2 border-slate-100 flex items-center justify-between bg-white shrink-0">
-        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Daftar Antrean</h3>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+    <div className="flex-1 bg-white border border-slate-200 rounded-sm shadow-sm flex flex-col overflow-hidden relative">
+      <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+        <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Daftar Antrean</h3>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-sm bg-emerald-100 text-emerald-700 border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[9px] font-bold uppercase tracking-widest">Live</span>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b-2 border-slate-100">
+          <thead className="bg-slate-100 border-b-2 border-slate-200 sticky top-0 z-10">
             <tr>
-              <th className="px-6 py-4 w-24 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">No</th>
-              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Identitas</th>
-              <th className="px-6 py-4 w-32 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</th>
-              <th className="px-6 py-4 w-[280px] text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Aksi</th>
+              <th className="px-3 py-2 w-12 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">No</th>
+              <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Nama Tamu</th>
+              <th className="px-4 py-2 w-56 text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Layanan</th>
+              <th className="px-3 py-2 w-20 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Meja</th>
+              <th className="px-3 py-2 w-24 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Status</th>
+              <th className="px-3 py-2 w-44 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y-2 divide-slate-50">
+          <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={4} className="px-6 py-12 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Memuat...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-xs font-bold text-slate-400 uppercase">Memuat...</td></tr>
             ) : queues.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-12 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Kosong</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-xs font-bold text-slate-400 uppercase">Belum ada antrean</td></tr>
             ) : (
               queues.map((q: any) => (
-                <tr key={q.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-xl font-black text-slate-800">{q.queue_number}</span>
+                <tr key={q.id} className="odd:bg-white even:bg-[#f8fafc] hover:bg-blue-50/50 transition-colors">
+                  <td className="px-3 py-2 text-center border-r border-slate-100">
+                    <span className="text-base font-black text-slate-800">{q.queue_number}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-extrabold text-slate-800 uppercase tracking-wide truncate">{q.guest_name}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mt-0.5">{q.service_type}</p>
+                  <td className="px-4 py-2 border-r border-slate-100">
+                    <span className="text-sm font-bold text-slate-800 uppercase truncate block">{q.guest_name}</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2 border-r border-slate-100">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{q.service_type}</span>
+                  </td>
+                  <td className="px-3 py-2 text-center border-r border-slate-100">
+                    <span className="font-bold text-[10px] text-slate-700 bg-slate-200/50 px-2 py-1 rounded-sm border border-slate-200">
+                      {q.service_type === 'Konsultasi Statistik' ? 'M1' : 'M2'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-center border-r border-slate-100">
                     {q.status === 'Selesai' ? (
-                      <span className="text-emerald-500 font-bold text-[10px] uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md">Selesai</span>
+                      <span className="text-[#00a65a] font-bold text-[9px] uppercase tracking-widest">Selesai</span>
                     ) : q.status === 'Dipanggil' ? (
-                      <span className="text-blue-500 font-bold text-[10px] uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-md">Dipanggil</span>
+                      <span className="text-[#0073b7] font-bold text-[9px] uppercase tracking-widest flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 bg-[#0073b7] rounded-full animate-pulse"></span> Dipanggil</span>
                     ) : (
-                      <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">Menunggu</span>
+                      <span className="text-[#f39c12] font-bold text-[9px] uppercase tracking-widest">Menunggu</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end items-center gap-2">
+                  <td className="px-3 py-2">
+                    <div className="flex justify-center items-center gap-1.5">
                       {q.status !== 'Selesai' && (
                         <>
                           {q.status === 'Dipanggil' ? (
-                            <button onClick={() => handlePanggilUlang(q)} className="h-9 px-4 rounded-xl border-2 border-blue-100 bg-white hover:bg-blue-50 text-blue-600 flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-widest transition-all">
-                              <Megaphone size={12} /> Ulangi
+                            <button onClick={() => handlePanggilUlang(q)} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
+                              <Megaphone size={10} /> Ulangi
                             </button>
                           ) : (
-                            <button onClick={() => handlePanggil(q)} className="h-9 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-widest transition-all shadow-md shadow-orange-500/20">
-                              <Volume2 size={12} /> Panggil
+                            <button onClick={() => handlePanggil(q)} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
+                              <Volume2 size={10} /> Panggil
                             </button>
                           )}
-                          <button onClick={() => handleSelesai(q.id)} className="h-9 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-widest transition-all shadow-md shadow-slate-800/20">
-                            <CheckCircle size={12} /> Selesai
+                          <button onClick={() => handleSelesai(q.id)} className="h-6 px-2 rounded-sm bg-[#00a65a] hover:bg-green-600 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
+                            <CheckSquare size={10} /> Selesai
                           </button>
                         </>
                       )}
