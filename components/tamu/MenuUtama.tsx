@@ -1,11 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClipboardList, BookOpen, UserCheck } from 'lucide-react';
+import { ClipboardList, BookOpen, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export default function MenuUtama({ onNavigate }: { onNavigate: (view: 'antrean' | 'registrasi' | 'bukutamu') => void }) {
+export default function MenuUtama({ onNavigate }: { onNavigate: (view: 'antrean' | 'bukutamu') => void }) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+    const savedQueueId = localStorage.getItem('bps_active_queue_id');
+    if (savedQueueId) {
+      setActiveQueueId(savedQueueId);
+    }
+  }, []);
 
   return (
     <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
@@ -33,22 +43,30 @@ export default function MenuUtama({ onNavigate }: { onNavigate: (view: 'antrean'
           </label>
           <div className="flex flex-col gap-3">
             
-            {/* Tombol 1: Ambil Antrean -> Memanggil state 'antrean' */}
-            <button onClick={() => onNavigate('antrean')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
-              <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><ClipboardList size={18} /></div>
-              <div className="text-left"><p className="font-bold text-sm text-slate-800">Ambil Antrean</p><p className="text-[10px] text-slate-500">Dapatkan nomor antrean.</p></div>
-            </button>
+            {activeQueueId ? (
+              <button 
+                onClick={() => router.push(`/status/${activeQueueId}`)} 
+                className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-orange-500 text-white"><ClipboardList size={18} /></div>
+                  <div className="text-left">
+                    <p className="font-bold text-sm text-slate-900">Antrian Saya</p>
+                    <p className="text-[10px] text-orange-600 font-semibold">Kembali ke status antrian aktif</p>
+                  </div>
+                </div>
+                <ArrowRight size={18} />
+              </button>
+            ) : (
+              <button onClick={() => onNavigate('antrean')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
+                <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><ClipboardList size={18} /></div>
+                <div className="text-left"><p className="font-bold text-sm text-slate-800">Ambil Antrean</p><p className="text-[10px] text-slate-500">Dapatkan nomor antrean.</p></div>
+              </button>
+            )}
 
-            {/* Tombol 2: Isi Buku Tamu -> Memanggil state 'bukutamu' */}
             <button onClick={() => onNavigate('bukutamu')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
               <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><BookOpen size={18} /></div>
               <div className="text-left"><p className="font-bold text-sm text-slate-800">Isi Buku Tamu</p><p className="text-[10px] text-slate-500">Catat kunjungan resmi Anda.</p></div>
-            </button>
-
-            {/* Tombol 3: Layanan Registrasi -> Memanggil state 'registrasi' */}
-            <button onClick={() => onNavigate('registrasi')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
-              <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><UserCheck size={18} /></div>
-              <div className="text-left"><p className="font-bold text-sm text-slate-800">Layanan Registrasi</p><p className="text-[10px] text-slate-500">Pendaftaran akun & instansi.</p></div>
             </button>
             
           </div>

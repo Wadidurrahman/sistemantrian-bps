@@ -1,21 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Loader2, User, Star, CheckCircle2, Clock, Volume2 } from 'lucide-react';
+import { Loader2, User, Star, CheckCircle2, Clock, Volume2, MessageSquarePlus, RotateCcw } from 'lucide-react';
 
 export default function StatusAntrian() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
   const [queue, setQueue] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState('');
   const [skmSubmitted, setSkmSubmitted] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    if (id) {
+      localStorage.setItem('bps_active_queue_id', id);
+    }
+
     const fetchQueue = async () => {
       const { data, error } = await supabase
         .from('queues')
@@ -54,10 +60,17 @@ export default function StatusAntrian() {
     };
   }, [id]);
 
-  const submitSKM = async (score: number) => {
-    setRating(score);
-    await supabase.from('queues').update({ skm_score: score }).eq('id', id);
+  const submitSKM = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) return alert('Silakan pilih rating bintang terlebih dahulu.');
+    
+    await supabase.from('queues').update({ rating: rating, feedback: feedback }).eq('id', id);
     setSkmSubmitted(true);
+  };
+
+  const handleKeluarAntrean = () => {
+    localStorage.removeItem('bps_active_queue_id');
+    router.push('/');
   };
 
   if (loading) {
@@ -137,32 +150,62 @@ export default function StatusAntrian() {
           </div>
 
           {queue.status === 'Selesai' && !skmSubmitted && (
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Survei Kepuasan</h3>
-              <p className="text-[11px] text-slate-500 mb-4 font-semibold uppercase tracking-widest">Berikan Penilaian Anda</p>
-              <div className="flex justify-center gap-2">
+            <form onSubmit={submitSKM} className="mt-6 pt-5 border-t border-slate-200 text-left">
+              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide mb-1 text-center">Survei Kepuasan & Masukan</h3>
+              <p className="text-[10px] text-slate-500 mb-3 font-semibold uppercase tracking-widest text-center">Berikan Penilaian Anda</p>
+              
+              <div className="flex justify-center gap-2 mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
+                    type="button"
                     key={star}
-                    onClick={() => submitSKM(star)}
+                    onClick={() => setRating(star)}
                     className="hover:scale-110 transition-transform focus:outline-none"
                   >
                     <Star
-                      size={36}
+                      size={32}
                       className={`transition-colors ${rating >= star ? 'fill-yellow-400 text-yellow-400 drop-shadow-sm' : 'text-slate-200 fill-slate-50'}`}
                     />
                   </button>
                 ))}
               </div>
-            </div>
+
+              <div className="space-y-1 mb-4">
+                <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                  Kritik & Saran (Opsional)
+                </label>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Tuliskan masukan untuk pelayanan kami..."
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-orange-500 resize-none h-20 bg-slate-50"
+                ></textarea>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-widest rounded-lg shadow-sm transition-all"
+              >
+                Kirim Penilaian
+              </button>
+            </form>
           )}
 
           {skmSubmitted && (
-            <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col items-center gap-2 text-emerald-600 font-bold text-sm uppercase tracking-widest">
-              <Star size={24} className="fill-emerald-600" />
+            <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase tracking-widest">
+              <Star size={22} className="fill-emerald-600" />
               Terima Kasih Atas Penilaian Anda!
             </div>
           )}
+
+          <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center">
+            <button
+              onClick={handleKeluarAntrean}
+              className="text-[11px] font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5 transition-colors"
+            >
+              <RotateCcw size={14} /> Ambil Antrean Baru
+            </button>
+          </div>
         </div>
       </div>
     </main>
