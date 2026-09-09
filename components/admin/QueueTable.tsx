@@ -1,4 +1,14 @@
 import { Megaphone, Volume2, CheckSquare } from 'lucide-react';
+import { toTitleCase } from '@/utils/formatText';
+
+const panggilAntrean = (nama: string, nomor: string, meja: string) => {
+  const namaTitleCase = toTitleCase(nama);
+  const teksPanggilan = `Nomor antrean, ${nomor}, atas nama, ${namaTitleCase}, silakan menuju ke ${meja}`;
+  const utterance = new SpeechSynthesisUtterance(teksPanggilan);
+  utterance.lang = 'id-ID';
+  utterance.rate = 0.9;
+  window.speechSynthesis.speak(utterance);
+};
 
 export default function QueueTable({ loading, queues, handlePanggil, handlePanggilUlang, handleSelesai }: any) {
   return (
@@ -12,15 +22,15 @@ export default function QueueTable({ loading, queues, handlePanggil, handlePangg
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-slate-100 border-b-2 border-slate-200 sticky top-0 z-10">
             <tr>
-              <th className="px-3 py-2 w-12 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">No</th>
+              <th className="px-3 py-2 w-16 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200 whitespace-nowrap">No</th>
               <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Nama Tamu</th>
-              <th className="px-4 py-2 w-56 text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Layanan</th>
-              <th className="px-3 py-2 w-20 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Meja</th>
-              <th className="px-3 py-2 w-24 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Status</th>
-              <th className="px-3 py-2 w-44 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600">Aksi</th>
+              <th className="px-4 py-2 w-48 text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200">Layanan</th>
+              <th className="px-3 py-2 w-16 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200 whitespace-nowrap">Meja</th>
+              <th className="px-3 py-2 w-24 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 border-r border-slate-200 whitespace-nowrap">Status</th>
+              <th className="px-3 py-2 w-40 text-center text-[10px] font-bold uppercase tracking-widest text-slate-600 whitespace-nowrap">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -31,21 +41,21 @@ export default function QueueTable({ loading, queues, handlePanggil, handlePangg
             ) : (
               queues.map((q: any) => (
                 <tr key={q.id} className="odd:bg-white even:bg-[#f8fafc] hover:bg-blue-50/50 transition-colors">
-                  <td className="px-3 py-2 text-center border-r border-slate-100">
-                    <span className="text-base font-black text-slate-800">{q.queue_number}</span>
+                  <td className="px-3 py-2 text-center border-r border-slate-100 whitespace-nowrap">
+                    <span className="text-sm font-black text-slate-800">{q.queue_number}</span>
                   </td>
                   <td className="px-4 py-2 border-r border-slate-100">
-                    <span className="text-sm font-bold text-slate-800 uppercase truncate block">{q.guest_name}</span>
+                    <span className="text-xs font-bold text-slate-800 uppercase truncate block">{q.guest_name}</span>
                   </td>
                   <td className="px-4 py-2 border-r border-slate-100">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{q.service_type}</span>
                   </td>
-                  <td className="px-3 py-2 text-center border-r border-slate-100">
+                  <td className="px-3 py-2 text-center border-r border-slate-100 whitespace-nowrap">
                     <span className="font-bold text-[10px] text-slate-700 bg-slate-200/50 px-2 py-1 rounded-sm border border-slate-200">
                       {q.service_type === 'Konsultasi Statistik' ? 'M1' : 'M2'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-center border-r border-slate-100">
+                  <td className="px-3 py-2 text-center border-r border-slate-100 whitespace-nowrap">
                     {q.status === 'Selesai' ? (
                       <span className="text-[#00a65a] font-bold text-[9px] uppercase tracking-widest">Selesai</span>
                     ) : q.status === 'Dipanggil' ? (
@@ -54,16 +64,16 @@ export default function QueueTable({ loading, queues, handlePanggil, handlePangg
                       <span className="text-[#f39c12] font-bold text-[9px] uppercase tracking-widest">Menunggu</span>
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex justify-center items-center gap-1.5">
                       {q.status !== 'Selesai' && (
                         <>
                           {q.status === 'Dipanggil' ? (
-                            <button onClick={() => handlePanggilUlang(q)} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
+                            <button onClick={() => { panggilAntrean(q.guest_name, q.queue_number, q.service_type === 'Konsultasi Statistik' ? 'M1' : 'M2'); handlePanggilUlang(q); }} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
                               <Megaphone size={10} /> Ulangi
                             </button>
                           ) : (
-                            <button onClick={() => handlePanggil(q)} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
+                            <button onClick={() => { panggilAntrean(q.guest_name, q.queue_number, q.service_type === 'Konsultasi Statistik' ? 'M1' : 'M2'); handlePanggil(q); }} className="h-6 px-2 rounded-sm bg-[#0073b7] hover:bg-blue-700 text-white flex items-center gap-1 font-bold text-[9px] uppercase tracking-widest shadow-sm transition-colors">
                               <Volume2 size={10} /> Panggil
                             </button>
                           )}
