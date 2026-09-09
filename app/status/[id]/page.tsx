@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Loader2, User, Star, CheckCircle2, Clock, Volume2, MessageSquarePlus, RotateCcw } from 'lucide-react';
+import { Loader2, User, Star, CheckCircle2, Clock, Volume2, RotateCcw, XCircle } from 'lucide-react';
 
 export default function StatusAntrian() {
   const params = useParams();
@@ -29,7 +29,12 @@ export default function StatusAntrian() {
         .eq('id', id)
         .single();
       
-      if (!error && data) setQueue(data);
+      if (!error && data) {
+        setQueue(data);
+        if (data.status === 'Selesai' && data.rating) {
+          setSkmSubmitted(true);
+        }
+      }
       setLoading(false);
     };
 
@@ -68,7 +73,20 @@ export default function StatusAntrian() {
     setSkmSubmitted(true);
   };
 
-  const handleKeluarAntrean = () => {
+  const handleBatalkanAntrean = async () => {
+    const confirm = window.confirm('Apakah Anda yakin ingin membatalkan antrean ini?');
+    if (!confirm) return;
+
+    try {
+      await supabase.from('queues').delete().eq('id', id);
+      localStorage.removeItem('bps_active_queue_id');
+      router.push('/');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleKeluarSelesai = () => {
     localStorage.removeItem('bps_active_queue_id');
     router.push('/');
   };
@@ -83,9 +101,15 @@ export default function StatusAntrian() {
 
   if (!queue) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-500 to-orange-700 flex justify-center items-center font-sans">
-        <div className="bg-white p-8 rounded-sm shadow-xl text-center border border-slate-200">
-          <p className="text-red-500 font-bold text-sm uppercase tracking-widest">Data antrian tidak ditemukan.</p>
+      <div className="min-h-screen bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col justify-center items-center font-sans px-6">
+        <div className="bg-white p-8 rounded-sm shadow-xl text-center border border-slate-200 max-w-sm w-full">
+          <p className="text-red-500 font-bold text-sm uppercase tracking-widest mb-4">Data antrean tidak ditemukan atau sudah dibatalkan.</p>
+          <button 
+            onClick={handleKeluarSelesai}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-widest rounded transition-colors"
+          >
+            Kembali ke Beranda
+          </button>
         </div>
       </div>
     );
@@ -191,21 +215,31 @@ export default function StatusAntrian() {
             </form>
           )}
 
-          {skmSubmitted && (
-            <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase tracking-widest">
-              <Star size={22} className="fill-emerald-600" />
-              Terima Kasih Atas Penilaian Anda!
+          {queue.status === 'Selesai' && skmSubmitted && (
+            <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase tracking-widest">
+                <Star size={22} className="fill-emerald-600" />
+                Terima Kasih Atas Penilaian Anda!
+              </div>
+              <button
+                onClick={handleKeluarSelesai}
+                className="text-[11px] font-bold text-slate-500 hover:text-orange-600 flex items-center gap-1.5 transition-colors border border-slate-200 px-4 py-2 rounded-sm"
+              >
+                <RotateCcw size={14} /> Selesai & Kembali ke Menu Utama
+              </button>
             </div>
           )}
 
-          <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center">
-            <button
-              onClick={handleKeluarAntrean}
-              className="text-[11px] font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5 transition-colors"
-            >
-              <RotateCcw size={14} /> Ambil Antrean Baru
-            </button>
-          </div>
+          {queue.status !== 'Selesai' && (
+            <div className="mt-8 pt-4 border-t border-slate-100 flex justify-center items-center">
+              <button
+                onClick={handleBatalkanAntrean}
+                className="text-[10px] font-bold text-slate-400 hover:text-red-600 flex items-center gap-1.5 transition-colors"
+              >
+                <XCircle size={14} /> Batalkan Antrean Ini
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </main>

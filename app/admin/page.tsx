@@ -53,6 +53,7 @@ export default function AdminDashboard() {
       fetchData();
       try {
         const audio = new Audio('/chime.mp3');
+        audio.volume = 1.0;
         audio.play();
       } catch (e) {}
     }).subscribe();
@@ -201,10 +202,12 @@ export default function AdminDashboard() {
   const playAudioAndSpeak = (q: any) => {
     try {
       const audio = new Audio('/chime.mp3');
+      audio.volume = 1.0;
       audio.play();
 
       audio.onended = () => {
         if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
           const layananSuara = q.service_type === 'Konsultasi Statistik' 
             ? 'Meja Konsultasi Statistik' 
             : 'Meja Pelayanan Pengaduan';
@@ -214,6 +217,7 @@ export default function AdminDashboard() {
           const utterance = new SpeechSynthesisUtterance(textToSpeak);
           utterance.lang = 'id-ID';
           utterance.rate = 0.9;
+          utterance.volume = 1.0;
           window.speechSynthesis.speak(utterance);
         }
       };

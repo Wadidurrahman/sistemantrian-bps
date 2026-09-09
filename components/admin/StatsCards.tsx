@@ -38,7 +38,7 @@ export default function StatsCards({ stats, registrationsCount, onOpenDataMasuk 
         </div>
         
         {registrationsCount > 0 && (
-          <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(220,38,38,1)] animate-bounce border-2 border-white">
+          <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(220,38,38,1)] animate-bounce border-2 border-white z-10">
             {registrationsCount}
           </div>
         )}
