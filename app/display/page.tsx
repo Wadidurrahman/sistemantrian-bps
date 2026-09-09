@@ -116,8 +116,8 @@ export default function DisplayTV() {
             <div className="flex items-center gap-3 lg:gap-4">
               <img src="/logoBPS.jpg" alt="Logo" className="h-10 lg:h-12 w-auto object-contain" />
               <div className="flex flex-col justify-center">
-                <h1 className="text-[clamp(10px,1.2vw,16px)] font-black text-slate-700 tracking-widest uppercase leading-tight">Badan Pusat Statistik</h1>
-                <h2 className="text-[clamp(10px,1.2vw,16px)] font-black text-slate-700 tracking-widest uppercase leading-tight">Kota Probolinggo</h2>
+                <h1 className="text-[clamp(10px,1.2vw,16px)] font-black text-blue-700 tracking-widest uppercase leading-tight">Badan Pusat Statistik</h1>
+                <h2 className="text-[clamp(10px,1.2vw,16px)] font-black text-slate-400 tracking-widest uppercase leading-tight">Kota Probolinggo</h2>
               </div>
             </div>
             <div className="flex items-center">
