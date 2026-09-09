@@ -48,21 +48,64 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
     setShowConfirm(true);
   };
 
+  const convertToWebP = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Gagal memproses gambar untuk konversi.'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+              const webpFile = new File([blob], newFileName, { type: 'image/webp' });
+              resolve(webpFile);
+            } else {
+              reject(new Error('Gagal mengkonversi ke format WebP.'));
+            }
+          },
+          'image/webp',
+          0.9 
+        );
+      };
+      img.onerror = () => reject(new Error('Gagal memuat file gambar.'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleConfirmUpload = async () => {
     if (!selectedFile) return;
     setUploading(true);
     setShowConfirm(false);
 
     try {
-      const fileExt = selectedFile.name.split('.').pop();
+      let fileToUpload = selectedFile;
+      const isImage = selectedFile.type.startsWith('image/');
+
+      if (isImage && selectedFile.type !== 'image/webp' && selectedFile.type !== 'image/gif' && selectedFile.type !== 'image/svg+xml') {
+        try {
+          fileToUpload = await convertToWebP(selectedFile);
+        } catch (convertError) {
+          console.warn('Konversi WebP gagal, menggunakan file asli.', convertError);
+        }
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('display-media').upload(filePath, selectedFile);
+      const { error: uploadError } = await supabase.storage.from('display-media').upload(filePath, fileToUpload);
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('display-media').getPublicUrl(filePath);
-      const mediaType = selectedFile.type.startsWith('video/') ? 'video' : 'image';
+      const mediaType = fileToUpload.type.startsWith('video/') ? 'video' : 'image';
 
       const { error: dbError } = await supabase.from('display_media').insert([
         {
@@ -123,10 +166,10 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
         <div className="py-4 shrink-0 flex items-center justify-between bg-slate-50 px-4 border border-slate-200 rounded-sm">
           <div>
             <p className="text-xs font-bold text-slate-700 uppercase">Tambah Media Baru</p>
-            <p className="text-[10px] text-slate-500">Maksimal Gambar: 5MB | Maksimal Video: 50MB</p>
+            <p className="text-[10px] text-slate-500">Maks. Gambar: 5MB (Otomatis dikonversi ke WebP) | Maks. Video: 50MB</p>
           </div>
           <label className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-sm flex items-center gap-1.5">
-            <Upload size={14} /> {uploading ? 'Mengunggah...' : 'Upload File'}
+            <Upload size={14} /> {uploading ? 'Memproses...' : 'Upload File'}
             <input type="file" accept="image/*,video/*" onChange={handleFileSelect} disabled={uploading} className="hidden" />
           </label>
         </div>

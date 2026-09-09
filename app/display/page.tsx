@@ -1,258 +1,291 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
-import { X, Upload, Trash2, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Maximize, Minimize } from 'lucide-react';
 
-export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function DisplayTV() {
+  const [queues, setQueues] = useState<any[]>([]);
   const [mediaList, setMediaList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [waktu, setWaktu] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
+      const minTime = settings?.last_reset_timestamp || '1970-01-01';
+
+      const { data: qData } = await supabase
+        .from('queues')
+        .select('*')
+        .gte('created_at', minTime)
+        .order('updated_at', { ascending: false });
+      
+      if (qData) setQueues(qData);
+
+      const { data: mData } = await supabase
+        .from('display_media')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+        
+      if (mData) {
+        setMediaList(mData);
+        setCurrentMediaIndex(prev => prev >= mData.length ? 0 : prev);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchMedia();
-    }
-  }, [isOpen]);
+    fetchData();
 
-  const fetchMedia = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from('display_media').select('*').order('created_at', { ascending: false });
-    if (!error && data) {
-      setMediaList(data);
-    }
-    setLoading(false);
+    const channelQ = supabase.channel('tv-queues')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => fetchData())
+      .subscribe();
+
+    const channelM = supabase.channel('tv-media')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'display_media' }, () => fetchData())
+      .subscribe();
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      setWaktu(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':'));
+    }, 1000);
+
+    const fallbackPoll = setInterval(fetchData, 10000);
+
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+
+    return () => {
+      supabase.removeChannel(channelQ);
+      supabase.removeChannel(channelM);
+      clearInterval(timer);
+      clearInterval(fallbackPoll);
+      document.removeEventListener('fullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mediaList.length <= 1) return;
+    const currentMedia = mediaList[currentMediaIndex];
+    if (currentMedia?.media_type === 'video') return;
+
+    const slideTimer = setInterval(() => {
+      setCurrentMediaIndex((prev) => (prev + 1) % mediaList.length);
+    }, 10000);
+
+    return () => clearInterval(slideTimer);
+  }, [currentMediaIndex, mediaList]);
+
+  const handleVideoEnded = () => {
+    setCurrentMediaIndex((prev) => (prev + 1) % mediaList.length);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-
-    if (!isImage && !isVideo) {
-      alert('Format file tidak didukung! Harap pilih gambar atau video.');
-      return;
-    }
-
-    if (file.size > maxSize) {
-      alert(`Ukuran file terlalu besar! Maksimal ukuran adalah ${isVideo ? '50MB untuk video' : '5MB untuk gambar'}.`);
-      return;
-    }
-
-    setSelectedFile(file);
-    setShowConfirm(true);
-  };
-
-  const convertToWebP = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Gagal memproses gambar untuk konversi.'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-              const webpFile = new File([blob], newFileName, { type: 'image/webp' });
-              resolve(webpFile);
-            } else {
-              reject(new Error('Gagal mengkonversi ke format WebP.'));
-            }
-          },
-          'image/webp',
-          0.9 
-        );
-      };
-      img.onerror = () => reject(new Error('Gagal memuat file gambar.'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const handleConfirmUpload = async () => {
-    if (!selectedFile) return;
-    setUploading(true);
-    setShowConfirm(false);
-
-    try {
-      let fileToUpload = selectedFile;
-      const isImage = selectedFile.type.startsWith('image/');
-
-      if (isImage && selectedFile.type !== 'image/webp' && selectedFile.type !== 'image/gif' && selectedFile.type !== 'image/svg+xml') {
-        try {
-          fileToUpload = await convertToWebP(selectedFile);
-        } catch (convertError) {
-          console.warn('Konversi WebP gagal, menggunakan file asli.', convertError);
-        }
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.error(err));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
       }
-
-      const fileExt = fileToUpload.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage.from('display-media').upload(filePath, fileToUpload);
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage.from('display-media').getPublicUrl(filePath);
-      const mediaType = fileToUpload.type.startsWith('video/') ? 'video' : 'image';
-
-      const { error: dbError } = await supabase.from('display_media').insert([
-        {
-          title: selectedFile.name,
-          url: publicUrlData.publicUrl,
-          media_type: mediaType,
-          is_active: true
-        }
-      ]);
-
-      if (dbError) throw dbError;
-
-      alert('Media berhasil diunggah!');
-      setSelectedFile(null);
-      fetchMedia();
-    } catch (err: any) {
-      console.error(err);
-      alert('Gagal mengunggah media: ' + (err.message || 'Terjadi kesalahan'));
-    } finally {
-      setUploading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus media ini dari daftar display?')) return;
-
-    try {
-      const { error } = await supabase.from('display_media').delete().eq('id', id);
-      if (error) throw error;
-      fetchMedia();
-    } catch (err: any) {
-      alert('Gagal menghapus media: ' + err.message);
-    }
-  };
-
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase.from('display_media').update({ is_active: !currentStatus }).eq('id', id);
-    if (!error) {
-      fetchMedia();
-    }
-  };
-
-  if (!isOpen) return null;
+  const aktifM1 = queues.find(q => q.service_type === 'Konsultasi Statistik' && q.status === 'Dipanggil') || queues.find(q => q.service_type === 'Konsultasi Statistik' && q.status === 'Menunggu');
+  const aktifM2 = queues.find(q => q.service_type === 'Pelayanan Pengaduan' && q.status === 'Dipanggil') || queues.find(q => q.service_type === 'Pelayanan Pengaduan' && q.status === 'Menunggu');
+  const daftarMenunggu = queues.filter(q => q.status === 'Menunggu').sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
-      <div className="bg-white rounded-sm max-w-2xl w-full p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 shrink-0">
-          <div>
-            <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">Kelola Media Display TV</h3>
-            <p className="text-[11px] text-slate-500">Atur daftar gambar atau video slideshow untuk layar utama.</p>
+    <div className="h-dvh w-full bg-slate-900 flex flex-row overflow-hidden font-sans">
+      
+      <section className="w-[45%] h-full flex flex-col bg-slate-50 border-r border-slate-300 z-20 overflow-hidden">
+        
+        <div className="shrink-0 h-[10vh] min-h-[70px] flex items-center justify-between px-4 lg:px-6 border-b-[5px] border-orange-500 bg-white shadow-sm z-10">
+          <div className="flex items-center gap-3 lg:gap-4">
+            <img src="/logoBPS.jpg" alt="Logo" className="h-10 lg:h-12 w-auto object-contain" />
+            <div className="flex flex-col justify-center">
+              <h1 className="text-[clamp(10px,1.2vw,16px)] font-black text-blue-700 tracking-widest uppercase leading-tight">Badan Pusat Statistik</h1>
+              <h2 className="text-[clamp(10px,1.2vw,16px)] font-black text-slate-400 tracking-widest uppercase leading-tight">Kota Probolinggo</h2>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
-            <X size={20} />
-          </button>
+          <div className="flex items-center">
+            <div className="bg-blue-50 px-3 py-1.5 lg:px-4 lg:py-2 border border-blue-200 rounded-lg shadow-inner">
+              <span className="text-[clamp(16px,2vw,30px)] font-black text-blue-900 font-mono tracking-wider">{waktu || '00:00:00'}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="py-4 shrink-0 flex items-center justify-between bg-slate-50 px-4 border border-slate-200 rounded-sm">
-          <div>
-            <p className="text-xs font-bold text-slate-700 uppercase">Tambah Media Baru</p>
-            <p className="text-[10px] text-slate-500">Maks. Gambar: 5MB (Otomatis dikonversi ke WebP) | Maks. Video: 50MB</p>
+        <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-gradient-to-b from-blue-50/80 to-white">
+          <div className="flex items-center gap-2 mb-2 shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <h3 className="text-[clamp(12px,1.5vw,20px)] font-black text-slate-700 tracking-[0.15em] uppercase text-center">MEJA 1 : KONSULTASI STATISTIK</h3>
           </div>
-          <label className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-sm flex items-center gap-1.5">
-            <Upload size={14} /> {uploading ? 'Memproses...' : 'Upload File'}
-            <input type="file" accept="image/*,video/*" onChange={handleFileSelect} disabled={uploading} className="hidden" />
-          </label>
+          
+          <p className="text-[clamp(10px,1vw,14px)] font-bold text-slate-400 uppercase tracking-widest shrink-0">
+            {aktifM1 ? 'SEDANG MELAYANI' : 'TIDAK ADA ANTREAN'}
+          </p>
+
+          <div className="flex-1 flex items-center justify-center w-full min-h-0 my-2">
+            <span className="text-[clamp(60px,12vw,160px)] font-black text-blue-900 tracking-tighter leading-none drop-shadow-sm">
+              {aktifM1?.queue_number?.split('-')[1] || '--'}
+            </span>
+          </div>
+
+          <p className="text-[clamp(14px,1.5vw,24px)] font-bold text-slate-700 uppercase truncate max-w-full px-4 shrink-0">
+            {aktifM1 ? `Atas Nama: ` : ''}<span className="text-blue-900">{aktifM1?.guest_name || ''}</span>
+          </p>
+          
+          <div className="h-6 mt-2 shrink-0">
+            <p className="text-[clamp(10px,1.2vw,16px)] font-bold text-emerald-600 uppercase tracking-widest flex items-center justify-center">
+              {aktifM1 ? `STATUS: ${aktifM1.status === 'Dipanggil' ? 'DALAM PELAYANAN' : 'DALAM ANTREAN'}` : ''}
+            </p>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto my-4 space-y-2 pr-1">
-          {loading ? (
-            <div className="text-center py-10 text-xs text-slate-400 uppercase font-bold">Memuat data media...</div>
-          ) : mediaList.length > 0 ? (
-            mediaList.map((item) => (
-              <div key={item.id} className="flex items-center justify-between bg-white p-3 border border-slate-200 rounded-sm shadow-xs gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 bg-slate-100 rounded-sm overflow-hidden flex items-center justify-center shrink-0 border border-slate-200">
-                    {item.media_type === 'image' ? (
-                      <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[9px] font-bold text-slate-600 uppercase">VIDEO</span>
-                    )}
+        <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-gradient-to-b from-orange-50/80 to-white">
+          <div className="flex items-center gap-2 mb-2 shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></div>
+            <h3 className="text-[clamp(12px,1.5vw,20px)] font-black text-slate-700 tracking-[0.15em] uppercase text-center">MEJA 2 : PELAYANAN PENGADUAN</h3>
+          </div>
+          
+          <p className="text-[clamp(10px,1vw,14px)] font-bold text-slate-400 uppercase tracking-widest shrink-0">
+            {aktifM2 ? 'SEDANG MELAYANI' : 'TIDAK ADA ANTREAN'}
+          </p>
+
+          <div className="flex-1 flex items-center justify-center w-full min-h-0 my-2">
+            <span className="text-[clamp(60px,12vw,160px)] font-black text-orange-600 tracking-tighter leading-none drop-shadow-sm">
+              {aktifM2?.queue_number?.split('-')[1] || '--'}
+            </span>
+          </div>
+
+          <p className="text-[clamp(14px,1.5vw,24px)] font-bold text-slate-700 uppercase truncate max-w-full px-4 shrink-0">
+            {aktifM2 ? `Atas Nama: ` : ''}<span className="text-orange-600">{aktifM2?.guest_name || ''}</span>
+          </p>
+          
+          <div className="h-6 mt-2 shrink-0">
+            <p className="text-[clamp(10px,1.2vw,16px)] font-bold text-orange-600 uppercase tracking-widest flex items-center justify-center">
+              {aktifM2 ? `STATUS: ${aktifM2.status === 'Dipanggil' ? 'DALAM PELAYANAN' : 'DALAM ANTREAN'}` : ''}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-[1.5] min-h-0 flex flex-col bg-slate-50 p-4 lg:p-6 shadow-inner shrink-0">
+          <div className="flex justify-between items-center mb-3 shrink-0">
+            <h3 className="text-[clamp(11px,1.2vw,16px)] font-black text-blue-900 tracking-widest uppercase">Antrean Berikutnya</h3>
+            <span className="bg-blue-600 text-white text-[clamp(9px,1vw,12px)] font-bold px-3 py-1 rounded-full shadow-sm">{daftarMenunggu.length} Menunggu</span>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2 min-h-0">
+            {daftarMenunggu.slice(0, 3).map((q) => (
+              <div key={q.id} className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-xs lg:text-sm shadow-sm shrink-0">
+                    {q.guest_name.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 uppercase truncate">{item.title}</p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
-                      {item.is_active ? 'Aktif' : 'Nonaktif'}
-                    </span>
+                    <p className="text-sm lg:text-base font-black text-slate-800 leading-none">{q.queue_number?.split('-')[1]}</p>
+                    <p className="text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase truncate max-w-[150px]">{q.guest_name}</p>
                   </div>
                 </div>
+                <span className="text-[10px] lg:text-[11px] font-bold text-slate-600 bg-slate-200 border border-slate-300 px-2.5 py-0.5 rounded shadow-sm shrink-0">
+                  {q.service_type === 'Konsultasi Statistik' ? 'M1' : 'M2'}
+                </span>
+              </div>
+            ))}
+            {daftarMenunggu.length === 0 && (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum Ada Antrean</p>
+              </div>
+            )}
+          </div>
+        </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button 
-                    onClick={() => handleToggleActive(item.id, item.is_active)}
-                    className={`px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase transition-colors ${item.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                  >
-                    {item.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(item.id)}
-                    className="p-1.5 rounded-sm bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                    title="Hapus Media"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+      </section>
+
+      <section className="w-[55%] h-full flex flex-col relative overflow-hidden bg-slate-900">
+        
+        {!isFullscreen && (
+          <button 
+            onClick={toggleFullScreen} 
+            className="absolute top-4 right-4 lg:top-6 lg:right-6 z-50 p-2.5 bg-black/50 text-white/70 hover:text-white hover:bg-black/70 rounded-lg border border-white/20 backdrop-blur-sm transition-all shadow-lg"
+          >
+            <Maximize size={20} />
+          </button>
+        )}
+
+        <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-black min-h-0">
+          {mediaList.length > 0 ? (
+            mediaList.map((media, index) => (
+              <div 
+                key={media.id} 
+                className={`absolute inset-0 transition-opacity duration-1000 ${index === currentMediaIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}
+              >
+                {media.media_type === 'video' ? (
+                  <video 
+                    src={media.url} 
+                    className="w-full h-full object-cover"
+                    autoPlay={index === currentMediaIndex} 
+                    muted 
+                    playsInline
+                    onEnded={handleVideoEnded}
+                    style={{ display: index === currentMediaIndex ? 'block' : 'none' }}
+                  />
+                ) : (
+                  <img src={media.url} alt="Slideshow" className="w-full h-full object-cover" />
+                )}
               </div>
             ))
           ) : (
-            <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-sm">
-              <ImageIcon size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-400 uppercase">Belum ada media tersimpan</p>
+            <div className="text-slate-500 flex flex-col items-center z-10 text-center px-4">
+              <span className="text-lg lg:text-2xl font-bold uppercase tracking-widest mb-2">SLIDESHOW BANNER INFORMASI BPS</span>
+              <span className="text-xs">Gambar aktif slide ke-1</span>
             </div>
           )}
-        </div>
 
-        <div className="pt-3 border-t border-slate-200 flex justify-end shrink-0">
-          <button onClick={onClose} className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold uppercase rounded-sm transition-colors">
-            Tutup
-          </button>
-        </div>
-      </div>
-
-      {showConfirm && selectedFile && (
-        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-sm max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center">
-            <AlertCircle size={40} className="mx-auto text-amber-500 mb-2" />
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide mb-1">Konfirmasi Upload</h4>
-            <p className="text-xs text-slate-600 mb-4 break-all">
-              File: <span className="font-bold">{selectedFile.name}</span> ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
-            </p>
-            <div className="flex gap-2 justify-center">
-              <button 
-                onClick={() => { setShowConfirm(false); setSelectedFile(null); }}
-                className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold uppercase rounded-sm"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={handleConfirmUpload}
-                className="px-4 py-2 bg-blue-900 text-white text-xs font-bold uppercase rounded-sm"
-              >
-                Ya, Upload
-              </button>
+          <div className="absolute bottom-6 right-6 lg:bottom-10 lg:right-10 z-30 bg-[#fff5eb] border-2 border-orange-200 p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col items-center origin-bottom-right">
+            <div className="flex items-center gap-2 mb-2 lg:mb-3">
+              <span className="text-orange-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect width="5" height="5" x="7" y="7" rx="1"></rect><rect width="5" height="5" x="12" y="12" rx="1"></rect></svg>
+              </span>
+              <span className="text-[10px] lg:text-xs font-black text-slate-800 tracking-widest uppercase">SCAN DISINI</span>
             </div>
+            <div className="w-24 h-24 lg:w-32 lg:h-32 bg-white p-2 rounded-lg lg:rounded-xl shadow-inner border border-slate-200 flex items-center justify-center">
+               <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://antrean-bps.vercel.app" alt="QR Code" className="w-full h-full object-contain" />
+            </div>
+            <p className="text-[8px] lg:text-[10px] font-bold text-orange-600 tracking-widest uppercase mt-2 lg:mt-3">SCAN VIA HP</p>
           </div>
         </div>
-      )}
+        
+        <footer className="h-[8vh] min-h-[60px] max-h-[80px] w-full bg-gradient-to-r from-[#003366] to-[#b35900] flex items-center overflow-hidden shrink-0 z-30 shadow-2xl border-t-[3px] border-yellow-500">
+          <div className="bg-yellow-500 text-slate-900 h-full flex items-center px-6 lg:px-8 font-black uppercase tracking-widest text-sm lg:text-base z-10 shrink-0">
+            INFO
+          </div>
+          <div className="flex-1 whitespace-nowrap overflow-hidden relative h-full flex items-center min-w-0">
+            <div className="animate-[marquee_25s_linear_infinite] inline-block">
+              <span className="text-[clamp(14px,1.5vw,22px)] font-bold text-white tracking-wider mx-6 lg:mx-8">
+                Selamat Datang di Pelayanan Statistik Terpadu (PST) Badan Pusat Statistik Kota Probolinggo. Siap Melayani dengan Cepat dan Tepat.
+              </span>
+              <span className="text-[clamp(14px,1.5vw,22px)] font-black text-yellow-400 mx-2 lg:mx-4">
+                •
+              </span>
+              <span className="text-[clamp(14px,1.5vw,22px)] font-bold text-white tracking-wider mx-6 lg:mx-8">
+                Silakan scan QR Code di layar untuk mengambil nomor antrean melalui HP Anda.
+              </span>
+            </div>
+          </div>
+        </footer>
+
+      </section>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes marquee {
+          0% { transform: translateX(100vw); }
+          100% { transform: translateX(-100%); }
+        }
+      `}} />
     </div>
   );
 }
