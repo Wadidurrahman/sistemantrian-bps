@@ -1,194 +1,53 @@
-'use client';
+import { X, Clock } from 'lucide-react';
 
-import { useState } from 'react';
-import { supabase } from '@/utils/supabase';
-import { User, Building2, MapPin, FileText, Phone, ArrowLeft, CheckCircle2 } from 'lucide-react';
-
-export default function BukuTamu({ onBack }: { onBack: () => void }) {
-  const [formData, setFormData] = useState({
-    nama: '',
-    instansi: '',
-    tujuan: '',
-    keperluan: '',
-    kontak: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from('buku_tamu')
-        .insert([
-          {
-            nama: formData.nama,
-            instansi: formData.instansi,
-            tujuan: formData.tujuan,
-            keperluan: formData.keperluan,
-            kontak: formData.kontak,
-            status: 'Selesai'
-          }
-        ]);
-
-      if (error) throw error;
-
-      setSuccess(true);
-      
-      setTimeout(() => {
-        onBack();
-      }, 2500);
-      
-    } catch (err) {
-      console.error('Error submitting buku tamu:', err);
-      alert('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  if (success) {
-    return (
-      <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center justify-center relative font-sans px-6">
-        <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full transform transition-all animate-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle2 size={40} />
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Berhasil!</h2>
-          <p className="text-sm font-medium text-slate-500 leading-relaxed">
-            Data kunjungan Anda telah tersimpan di sistem kami. Terima kasih atas kunjungannya.
-          </p>
-        </div>
-      </main>
-    );
-  }
+export default function DataMasukModal({ isOpen, onClose, registrations = [] }: any) {
+  if (!isOpen) return null;
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
-      <div className="w-full max-w-md px-6 pt-10 pb-20 relative z-10 text-left">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 text-white/90 hover:text-white font-bold text-sm uppercase tracking-widest mb-6 transition-colors"
-        >
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight drop-shadow-md">Buku Tamu</h1>
-        <p className="text-orange-50 text-xs font-medium leading-relaxed opacity-90">
-          Silakan lengkapi data diri Anda sebagai catatan kunjungan resmi di PST BPS Kota Probolinggo.
-        </p>
-      </div>
-
-      <div className="w-full max-w-md bg-white sm:rounded-[2rem] rounded-t-[2rem] px-6 pt-8 pb-10 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-8">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <User size={16} />
-              </div>
-              <input 
-                required
-                type="text" 
-                name="nama"
-                value={formData.nama}
-                onChange={handleChange}
-                placeholder="Masukkan nama lengkap" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-slate-400 placeholder:font-normal"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Instansi / Asal</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <Building2 size={16} />
-              </div>
-              <input 
-                required
-                type="text" 
-                name="instansi"
-                value={formData.instansi}
-                onChange={handleChange}
-                placeholder="Contoh: Universitas Brawijaya / Umum" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-slate-400 placeholder:font-normal"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Tujuan Kunjungan</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <MapPin size={16} />
-              </div>
-              <input 
-                required
-                type="text" 
-                name="tujuan"
-                value={formData.tujuan}
-                onChange={handleChange}
-                placeholder="Contoh: Ruang PST / Ruang Kepala" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-slate-400 placeholder:font-normal"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Keperluan</label>
-            <div className="relative">
-              <div className="absolute top-3 left-0 pl-3 pointer-events-none text-slate-400">
-                <FileText size={16} />
-              </div>
-              <textarea 
-                required
-                name="keperluan"
-                value={formData.keperluan}
-                onChange={handleChange}
-                placeholder="Jelaskan keperluan Anda secara singkat" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-slate-400 placeholder:font-normal resize-none h-24 custom-scrollbar"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">No. HP / WhatsApp</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <Phone size={16} />
-              </div>
-              <input 
-                required
-                type="tel" 
-                name="kontak"
-                value={formData.kontak}
-                onChange={handleChange}
-                placeholder="081234567890" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all placeholder:text-slate-400 placeholder:font-normal"
-              />
-            </div>
-          </div>
-
-          <button 
-            disabled={loading}
-            type="submit" 
-            className="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-orange-600/30 transition-all focus:outline-none focus:ring-4 focus:ring-orange-500/30 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            ) : (
-              'Kirim Data Kunjungan'
-            )}
+    <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+            Data Buku Tamu Hari Ini ({registrations?.length || 0})
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors">
+            <X size={20} />
           </button>
-        </form>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-100/50 custom-scrollbar">
+          <div className="space-y-4">
+            {!registrations || registrations.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum ada data buku tamu</p>
+              </div>
+            ) : (
+              registrations.map((item: any, index: number) => (
+                <div key={item.id || index} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-blue-900 uppercase text-sm">{item.nama || '-'}</h3>
+                        <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">
+                          {item.instansi || '-'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+                        <p className="text-xs text-slate-700 font-medium"><span className="text-slate-400">Kontak:</span> {item.kontak || '-'}</p>
+                        <p className="text-xs text-slate-700 font-medium"><span className="text-slate-400">Tujuan:</span> {item.tujuan || '-'}</p>
+                        <p className="text-xs text-slate-700 font-medium sm:col-span-2"><span className="text-slate-400">Keperluan:</span> {item.keperluan || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 flex items-start justify-end text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-1">
+                      <Clock size={12} /> {item.created_at ? new Date(item.created_at).toLocaleTimeString('id-ID') : '-'}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
