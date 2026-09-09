@@ -51,11 +51,6 @@ export default function AdminDashboard() {
     
     const channelB = supabase.channel('admin-buku-tamu').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buku_tamu' }, () => {
       fetchData();
-      try {
-        const audio = new Audio('/chime.mp3');
-        audio.volume = 1.0;
-        audio.play();
-      } catch (e) {}
     }).subscribe();
 
     const timer = setInterval(() => {
@@ -201,13 +196,16 @@ export default function AdminDashboard() {
 
   const playAudioAndSpeak = (q: any) => {
     try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
       const audio = new Audio('/chime.mp3');
       audio.volume = 1.0;
-      audio.play();
+      audio.play().catch(() => {});
 
       audio.onended = () => {
         if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
           const layananSuara = q.service_type === 'Konsultasi Statistik' 
             ? 'Meja Konsultasi Statistik' 
             : 'Meja Pelayanan Pengaduan';
@@ -216,8 +214,10 @@ export default function AdminDashboard() {
           
           const utterance = new SpeechSynthesisUtterance(textToSpeak);
           utterance.lang = 'id-ID';
-          utterance.rate = 0.9;
+          utterance.rate = 0.85;
+          utterance.pitch = 1.0;
           utterance.volume = 1.0;
+          
           window.speechSynthesis.speak(utterance);
         }
       };
