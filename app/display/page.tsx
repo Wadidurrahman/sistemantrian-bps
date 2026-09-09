@@ -43,7 +43,7 @@ export default function DisplayTV() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const baseUrl = window.location.origin;
-      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=1&data=${encodeURIComponent(baseUrl)}`);
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=1&data=${encodeURIComponent('https://sistemantrian-bps.vercel.app/')}`);
     }
 
     fetchData();
