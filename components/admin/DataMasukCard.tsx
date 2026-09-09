@@ -8,14 +8,12 @@ export default function DataMasukCard({ count, onClick }: { count: number; onCli
       onClick={onClick}
       className="relative bg-gradient-to-br from-indigo-600 to-blue-800 rounded-sm shadow-sm p-4 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all active:scale-95 group overflow-hidden"
     >
-      {/* Efek Latar Belakang */}
       <div className="absolute -right-4 -top-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
         <BellRing size={100} />
       </div>
 
-      {/* Badge Notifikasi Animasi */}
       {count > 0 && (
-        <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-bounce border-2 border-white">
+        <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-bounce border-2 border-white z-10">
           {count}
         </div>
       )}
