@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MenuUtama from '@/components/tamu/MenuUtama';
 import FormAntrean from '@/components/tamu/FormAntrean';
-import LayananRegistrasi from '@/components/tamu/LayananRegistrasi';
 import BukuTamu from '@/components/tamu/BukuTamu';
 
 type ViewState = 'menu' | 'antrean' | 'registrasi' | 'bukutamu';
@@ -27,10 +26,6 @@ export default function Home() {
 
   if (view === 'bukutamu') {
     return <BukuTamu onBack={() => setView('menu')} />;
-  }
-
-  if (view === 'registrasi') {
-    return <LayananRegistrasi type={view} onBack={() => setView('menu')} />;
   }
 
   return (

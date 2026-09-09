@@ -1,20 +1,17 @@
-export default function AdminFooter() {
-  const currentYear = new Date().getFullYear();
+'use client';
 
+export default function AdminFooter() {
   return (
-    <footer className="shrink-0 border-t border-slate-200 bg-white">
-      <div className="mx-auto flex min-h-[48px] w-full max-w-[1500px] items-center justify-center px-6">
-        <p className="text-center text-[10px] font-medium tracking-wide text-slate-400">
-          © {currentYear} Badan Pusat Statistik Kota Probolinggo
-          <span className="mx-2 text-slate-300">•</span>
-          <span className="font-semibold text-slate-500">v1.0.0</span>
-          <span className="mx-2 text-slate-300">•</span>
-          Developed by{' '}
-          <span className="font-semibold text-slate-700">
-            Wadidurrahman
-          </span>
-        </p>
-      </div>
+    <footer className="py-3 bg-white border-t border-slate-200 flex flex-col items-center justify-center shrink-0 text-center">
+      <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-1">
+        © 2026 Badan Pusat Statistik Kota Probolinggo
+      </span>
+      <span className="text-[10px] text-slate-400 font-medium tracking-wide mb-0.5">
+        Developed by Wadidurrahman
+      </span>
+      <span className="text-[9px] text-slate-400 font-medium tracking-widest">
+        v1.0.0
+      </span>
     </footer>
   );
 }

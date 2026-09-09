@@ -8,6 +8,7 @@ import StatsCards from '@/components/admin/StatsCards';
 import QueueTable from '@/components/admin/QueueTable';
 import AdminFooter from '@/components/admin/AdminFooter';
 import DisplaySettingsModal from '@/components/admin/DisplaySettingsModal';
+import DataMasukModal from '@/components/admin/DataMasukModal';
 import { AlertTriangle, X } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -16,11 +17,13 @@ export default function AdminDashboard() {
   const [loginError, setLoginError] = useState('');
   
   const [queues, setQueues] = useState<any[]>([]);
+  const [bukuTamu, setBukuTamu] = useState<any[]>([]);
   const [waktu, setWaktu] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDisplayModal, setShowDisplayModal] = useState(false);
+  const [showDataModal, setShowDataModal] = useState(false);
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('bps_admin_auth');
@@ -31,8 +34,13 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
-    const { data: qData } = await supabase.from('queues').select('*').gte('created_at', settings?.last_reset_timestamp || '1970-01-01').order('created_at', { ascending: false });
+    const minTime = settings?.last_reset_timestamp || '1970-01-01';
+
+    const { data: qData } = await supabase.from('queues').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
     if (qData) setQueues(qData);
+
+    const { data: bData } = await supabase.from('buku_tamu').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+    if (bData) setBukuTamu(bData);
   };
 
   useEffect(() => {
@@ -40,6 +48,14 @@ export default function AdminDashboard() {
     fetchData();
 
     const channelQ = supabase.channel('admin-q').on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => fetchData()).subscribe();
+    
+    const channelB = supabase.channel('admin-buku-tamu').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buku_tamu' }, () => {
+      fetchData();
+      try {
+        const audio = new Audio('/chime.mp3');
+        audio.play();
+      } catch (e) {}
+    }).subscribe();
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -51,6 +67,7 @@ export default function AdminDashboard() {
 
     return () => { 
       supabase.removeChannel(channelQ); 
+      supabase.removeChannel(channelB); 
       clearInterval(timer); 
       document.removeEventListener('fullscreenchange', handleFs);
     };
@@ -85,15 +102,17 @@ export default function AdminDashboard() {
     const now = new Date().toISOString();
     await supabase.from('app_settings').update({ last_reset_timestamp: now }).eq('id', 1);
     setQueues([]);
+    setBukuTamu([]);
     setShowResetModal(false);
   };
 
   const handleExportExcel = async () => {
-    if (queues.length === 0) return alert('Belum ada data antrean.');
+    if (queues.length === 0 && bukuTamu.length === 0) return alert('Belum ada data untuk di-export.');
     
     const { data: feedbackData } = await supabase.from('queues').select('*').not('feedback', 'is', null);
 
     let table = '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">';
+    
     table += '<thead>';
     table += '<tr><th colspan="8" style="font-size: 16px; font-weight: bold; padding: 15px; text-align: center; background-color: #f8f9fa;">LAPORAN PELAYANAN STATISTIK TERPADU (PST) - BPS KOTA PROBOLINGGO</th></tr>';
     table += '<tr style="background-color: #1e3a8a; color: white; font-weight: bold;">';
@@ -105,7 +124,7 @@ export default function AdminDashboard() {
     ([...queues]).reverse().forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
-      const bintang = q.rating ? '⭐'.repeat(q.rating) : '-';
+      const bintang = q.rating ? '⭐'.repeat(q.rating) : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
       
       table += '<tr>';
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${index + 1}</td>`;
@@ -120,9 +139,8 @@ export default function AdminDashboard() {
     });
     table += '</tbody>';
 
-    table += '<thead>';
-    table += '<tr><td colspan="8" style="border: none; height: 30px;"></td></tr>';
-    table += '<tr><th colspan="8" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">REKAPITULASI BUKU TAMU, KRITIK & SARAN PENGUNJUNG</th></tr>';
+    table += '<thead><tr><td colspan="8" style="border: none; height: 30px;"></td></tr>';
+    table += '<tr><th colspan="8" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">REKAPITULASI KRITIK & SARAN PENGUNJUNG</th></tr>';
     table += '<tr style="background-color: #0f172a; color: white; font-weight: bold;">';
     ['No', 'Nama Pengunjung', 'Nomor Antrean', 'Rating', 'Kritik & Saran', 'Waktu Kirim', '', ''].forEach((h, idx) => {
       if (idx < 6) table += `<th colspan="${idx === 4 ? 3 : 1}" style="padding: 10px; border: 1px solid #000;">${h}</th>`;
@@ -142,6 +160,31 @@ export default function AdminDashboard() {
       });
     } else {
       table += '<tr><td colspan="8" style="padding: 10px; text-align: center; border: 1px solid #000;">Belum ada data kritik dan saran.</td></tr>';
+    }
+    table += '</tbody>';
+
+    table += '<thead><tr><td colspan="8" style="border: none; height: 30px;"></td></tr>';
+    table += '<tr><th colspan="8" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">DATA BUKU TAMU PENGUNJUNG</th></tr>';
+    table += '<tr style="background-color: #0f172a; color: white; font-weight: bold;">';
+    ['No', 'Nama Tamu', 'Instansi/Asal', 'Tujuan', 'Keperluan', 'Kontak', 'Waktu Kunjungan', ''].forEach((h, idx) => {
+      if (idx < 7) table += `<th colspan="${idx === 4 ? 2 : 1}" style="padding: 10px; border: 1px solid #000;">${h}</th>`;
+    });
+    table += '</tr></thead><tbody>';
+
+    if (bukuTamu && bukuTamu.length > 0) {
+      bukuTamu.forEach((b, idx) => {
+        table += '<tr>';
+        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${idx + 1}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${b.nama || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${b.instansi || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${b.tujuan || '-'}</td>`;
+        table += `<td colspan="2" style="padding: 8px; border: 1px solid #000;">${b.keperluan || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${b.kontak || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${new Date(b.created_at).toLocaleString('id-ID')}</td>`;
+        table += '</tr>';
+      });
+    } else {
+      table += '<tr><td colspan="8" style="padding: 10px; text-align: center; border: 1px solid #000;">Belum ada data buku tamu.</td></tr>';
     }
 
     table += '</tbody></table>';
@@ -221,8 +264,8 @@ export default function AdminDashboard() {
       <main className="flex-1 w-full px-6 py-4 flex flex-col gap-3 overflow-hidden max-w-[1600px] mx-auto">
         <StatsCards 
           stats={statsObj} 
-          registrationsCount={0}
-          onOpenDataMasuk={() => {}}
+          registrationsCount={bukuTamu.length}
+          onOpenDataMasuk={() => setShowDataModal(true)}
         />
 
         <div className="flex-1 flex gap-3 overflow-hidden">
@@ -268,6 +311,12 @@ export default function AdminDashboard() {
       <DisplaySettingsModal 
         isOpen={showDisplayModal} 
         onClose={() => setShowDisplayModal(false)} 
+      />
+
+      <DataMasukModal 
+        isOpen={showDataModal} 
+        onClose={() => setShowDataModal(false)} 
+        registrations={bukuTamu} 
       />
 
       {showResetModal && (
