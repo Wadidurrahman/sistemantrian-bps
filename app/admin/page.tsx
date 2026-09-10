@@ -63,7 +63,7 @@ export default function AdminDashboard() {
 
     return () => { 
       supabase.removeChannel(channelQ); 
-      supabase.removeChannel(channelB); 
+      // supabase.removeChannel(channelB); 
       clearInterval(timer); 
       document.removeEventListener('fullscreenchange', handleFs);
     };
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
     ([...queues]).reverse().forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
-      const bintang = q.rating ? '⭐'.repeat(q.rating) : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
+      const bintang = q.rating ? `${q.rating} Bintang` : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
       
       table += '<tr>';
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${index + 1}</td>`;
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${meja}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${q.status || 'Menunggu'}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${wMasuk}</td>`;
-      table += `<td style="padding: 8px; border: 1px solid #000; text-align: center; color: #eab308; font-size: 14px;">${bintang}</td>`;
+      table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${bintang}</td>`;
       table += '</tr>';
     });
     table += '</tbody>';
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${idx + 1}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000;">${f.guest_name}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.queue_number}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.rating ? f.rating + ' Bintang' : '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.rating ? `${f.rating} Bintang` : '-'}</td>`;
         table += `<td colspan="3" style="padding: 8px; border: 1px solid #000;">${f.feedback || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${new Date(f.updated_at || f.created_at).toLocaleString('id-ID')}</td>`;
         table += '</tr>';

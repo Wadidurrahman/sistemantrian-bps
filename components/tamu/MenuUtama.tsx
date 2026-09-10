@@ -1,76 +1,105 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClipboardList, BookOpen, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
+import { Ticket, BookOpen, Clock } from 'lucide-react';
+import Image from 'next/image';
 
-export default function MenuUtama({ onNavigate }: { onNavigate: (view: 'antrean' | 'bukutamu') => void }) {
-  const [mounted, setMounted] = useState(false);
-  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
+export default function MenuUtama({ onSelectForm, onSelectBukuTamu }: { onSelectForm: () => void, onSelectBukuTamu: () => void }) {
   const router = useRouter();
+  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-    const savedQueueId = localStorage.getItem('bps_active_queue_id');
-    if (savedQueueId) {
-      setActiveQueueId(savedQueueId);
-    }
+    const checkActiveQueue = async () => {
+      const savedId = localStorage.getItem('bps_active_queue');
+      if (savedId) {
+        const { data } = await supabase
+          .from('queues')
+          .select('status')
+          .eq('id', savedId)
+          .single();
+
+        if (data && data.status !== 'Selesai') {
+          setActiveQueueId(savedId);
+        } else {
+          localStorage.removeItem('bps_active_queue');
+          setActiveQueueId(null);
+        }
+      }
+      setLoading(false);
+    };
+    
+    checkActiveQueue();
   }, []);
 
   return (
-    <main className="min-h-[100dvh] bg-gradient-to-b from-orange-500 to-orange-700 flex flex-col items-center relative overflow-x-hidden font-sans sm:justify-center">
-      <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] bg-[length:24px_24px] pointer-events-none"></div>
-      <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
-
-      <div className={`w-full max-w-sm px-6 pt-12 pb-24 relative z-10 text-left transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'}`}>
-        <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight drop-shadow-lg">Welcome!</h1>
-        <p className="text-orange-50 text-sm font-medium leading-relaxed drop-shadow-md">
-          Portal Pelayanan Statistik Terpadu (PST) BPS Kota Probolinggo.
-        </p>
-      </div>
-
-      <div className={`w-full max-w-sm bg-[#fdfdfd] sm:rounded-[2rem] rounded-t-[2rem] px-6 pt-14 pb-8 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.4)] relative z-20 flex-1 sm:flex-none sm:mb-8 -mt-16 transition-all duration-700 delay-150 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-32 opacity-0'}`}>
-        
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1.5 shadow-[0_8px_20px_rgba(249,115,22,0.15)] border border-orange-50">
-          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center overflow-hidden">
-            <img src="/logoBPS.jpg" alt="Logo" className="h-10 w-auto object-contain" />
-          </div>
+    <main className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-64 bg-blue-900 rounded-b-[3rem] shadow-xl"></div>
+      
+      <div className="w-full max-w-md relative z-10 flex flex-col items-center">
+        <div className="bg-white p-4 rounded-2xl shadow-sm mb-8 inline-block">
+          <Image src="/logoBPS.jpg" alt="Logo BPS" width={180} height={60} className="h-auto w-40 object-contain" priority />
         </div>
 
-        <div className="space-y-2 pt-2">
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1 mb-3 text-left">
-            PILIH MENU LAYANAN
-          </label>
-          <div className="flex flex-col gap-3">
-            
-            {activeQueueId ? (
-              <button 
-                onClick={() => router.push(`/status/${activeQueueId}`)} 
-                className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all shadow-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-orange-500 text-white"><ClipboardList size={18} /></div>
-                  <div className="text-left">
-                    <p className="font-bold text-sm text-slate-900">Antrian Saya</p>
-                    <p className="text-[10px] text-orange-600 font-semibold">Kembali ke status antrian aktif</p>
-                  </div>
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-black text-white mb-2 tracking-tight">Selamat Datang</h1>
+          <p className="text-blue-100 text-sm font-medium">Pelayanan Statistik Terpadu (PST)<br/>BPS Kota Probolinggo</p>
+        </div>
+
+        <div className="w-full space-y-4">
+          {!loading && activeQueueId ? (
+            <button 
+              onClick={() => router.push(`/status/${activeQueueId}`)}
+              className="w-full p-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl shadow-[0_10px_20px_-10px_rgba(5,150,105,0.5)] transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Clock size={24} className="text-white" />
                 </div>
-                <ArrowRight size={18} />
-              </button>
-            ) : (
-              <button onClick={() => onNavigate('antrean')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
-                <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><ClipboardList size={18} /></div>
-                <div className="text-left"><p className="font-bold text-sm text-slate-800">Ambil Antrean</p><p className="text-[10px] text-slate-500">Dapatkan nomor antrean.</p></div>
-              </button>
-            )}
-
-            <button onClick={() => onNavigate('bukutamu')} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-100 bg-white text-slate-600 hover:border-orange-500 hover:bg-orange-50/50 transition-all shadow-sm">
-              <div className="p-2.5 rounded-lg bg-orange-100 text-orange-600"><BookOpen size={18} /></div>
-              <div className="text-left"><p className="font-bold text-sm text-slate-800">Isi Buku Tamu</p><p className="text-[10px] text-slate-500">Catat kunjungan resmi Anda.</p></div>
+                <div className="text-left">
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-1">Status Antrean</h2>
+                  <p className="text-[10px] text-emerald-100 font-medium">Lihat panggilan antrean Anda</p>
+                </div>
+              </div>
             </button>
-            
-          </div>
+          ) : (
+            <button 
+              onClick={onSelectForm}
+              className="w-full p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-[0_10px_20px_-10px_rgba(37,99,235,0.5)] transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Ticket size={24} className="text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-1">Ambil Antrean</h2>
+                  <p className="text-[10px] text-blue-100 font-medium">Layanan Konsultasi & Pengaduan</p>
+                </div>
+              </div>
+            </button>
+          )}
+
+          <button 
+            onClick={onSelectBukuTamu}
+            className="w-full p-5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl shadow-sm transition-all flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <BookOpen size={24} className="text-orange-600" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-1">Isi Buku Tamu</h2>
+                <p className="text-[10px] text-slate-500 font-medium">Kunjungan tanpa layanan antrean</p>
+              </div>
+            </div>
+          </button>
         </div>
+        
+        <p className="mt-12 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          © {new Date().getFullYear()} BPS Kota Probolinggo
+        </p>
       </div>
     </main>
   );
