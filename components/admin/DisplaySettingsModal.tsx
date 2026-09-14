@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
-import { X, Upload, Trash2, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { X, Upload, Trash2, Image as ImageIcon, AlertCircle, Type, Save } from 'lucide-react';
 
 export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [mediaList, setMediaList] = useState<any[]>([]);
@@ -10,12 +10,31 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
   const [uploading, setUploading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // State untuk Running Text
+  const [runningText, setRunningText] = useState('');
+  const [savingText, setSavingText] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchMedia();
+      fetchRunningText();
     }
   }, [isOpen]);
+
+  const fetchRunningText = async () => {
+    const { data } = await supabase.from('app_settings').select('running_text').eq('id', 1).single();
+    if (data && data.running_text) {
+      setRunningText(data.running_text);
+    }
+  };
+
+  const handleSaveText = async () => {
+    setSavingText(true);
+    await supabase.from('app_settings').update({ running_text: runningText }).eq('id', 1);
+    setSavingText(false);
+    alert('Teks berjalan berhasil disimpan!');
+  };
 
   const fetchMedia = async () => {
     setLoading(true);
@@ -155,18 +174,40 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
       <div className="bg-white rounded-sm max-w-2xl w-full p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between pb-4 border-b border-slate-200 shrink-0">
           <div>
-            <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">Kelola Media Display TV</h3>
-            <p className="text-[11px] text-slate-500">Atur daftar gambar atau video slideshow untuk layar utama.</p>
+            <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">Pengaturan Display TV</h3>
+            <p className="text-[11px] text-slate-500">Atur teks berjalan dan daftar media slideshow.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X size={20} />
           </button>
         </div>
 
-        <div className="py-4 shrink-0 flex items-center justify-between bg-slate-50 px-4 border border-slate-200 rounded-sm">
+        {/* Form Edit Running Text */}
+        <div className="py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+              <Type size={14} /> Teks Berjalan (Running Text)
+            </label>
+            <button
+              onClick={handleSaveText}
+              disabled={savingText}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-70 shadow-sm"
+            >
+              {savingText ? 'Menyimpan...' : <><Save size={12} /> Simpan Teks</>}
+            </button>
+          </div>
+          <textarea
+            value={runningText}
+            onChange={(e) => setRunningText(e.target.value)}
+            placeholder="Masukkan teks pengumuman untuk layar display TV..."
+            className="w-full bg-slate-50 border border-slate-300 rounded-sm p-3 text-xs text-slate-800 focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 min-h-[60px] resize-none"
+          />
+        </div>
+
+        <div className="py-4 shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white gap-3">
           <div>
-            <p className="text-xs font-bold text-slate-700 uppercase">Tambah Media Baru</p>
-            <p className="text-[10px] text-slate-500">Maks. Gambar: 5MB (Otomatis dikonversi ke WebP) | Maks. Video: 50MB</p>
+            <p className="text-xs font-bold text-slate-700 uppercase">Kelola Media Slideshow</p>
+            <p className="text-[10px] text-slate-500">Maks. Gambar: 5MB (Jadi WebP) | Maks. Video: 50MB</p>
           </div>
           <label className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-sm flex items-center gap-1.5">
             <Upload size={14} /> {uploading ? 'Memproses...' : 'Upload File'}
@@ -174,12 +215,12 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
           </label>
         </div>
 
-        <div className="flex-1 overflow-y-auto my-4 space-y-2 pr-1">
+        <div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
           {loading ? (
             <div className="text-center py-10 text-xs text-slate-400 uppercase font-bold">Memuat data media...</div>
           ) : mediaList.length > 0 ? (
             mediaList.map((item) => (
-              <div key={item.id} className="flex items-center justify-between bg-white p-3 border border-slate-200 rounded-sm shadow-xs gap-4">
+              <div key={item.id} className="flex items-center justify-between bg-slate-50 p-3 border border-slate-200 rounded-sm shadow-xs gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-12 h-12 bg-slate-100 rounded-sm overflow-hidden flex items-center justify-center shrink-0 border border-slate-200">
                     {item.media_type === 'image' ? (
@@ -190,7 +231,7 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-800 uppercase truncate">{item.title}</p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase ${item.is_active ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-500 border border-slate-300'}`}>
                       {item.is_active ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </div>
@@ -199,13 +240,13 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
                 <div className="flex items-center gap-2 shrink-0">
                   <button 
                     onClick={() => handleToggleActive(item.id, item.is_active)}
-                    className={`px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase transition-colors ${item.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    className={`px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase transition-colors ${item.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
                   >
                     {item.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                   </button>
                   <button 
                     onClick={() => handleDelete(item.id)}
-                    className="p-1.5 rounded-sm bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    className="p-1.5 rounded-sm bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
                     title="Hapus Media"
                   >
                     <Trash2 size={16} />
@@ -239,13 +280,13 @@ export default function DisplaySettingsModal({ isOpen, onClose }: { isOpen: bool
             <div className="flex gap-2 justify-center">
               <button 
                 onClick={() => { setShowConfirm(false); setSelectedFile(null); }}
-                className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold uppercase rounded-sm"
+                className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold uppercase rounded-sm hover:bg-slate-300 transition-colors"
               >
                 Batal
               </button>
               <button 
                 onClick={handleConfirmUpload}
-                className="px-4 py-2 bg-blue-900 text-white text-xs font-bold uppercase rounded-sm"
+                className="px-4 py-2 bg-blue-900 text-white text-xs font-bold uppercase rounded-sm hover:bg-blue-800 transition-colors"
               >
                 Ya, Upload
               </button>

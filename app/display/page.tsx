@@ -9,8 +9,10 @@ export default function DisplayTV() {
   const [mediaList, setMediaList] = useState<any[]>([]);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [waktu, setWaktu] = useState('');
+  const [tanggal, setTanggal] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [runningText, setRunningText] = useState('Selamat Datang di Pelayanan Statistik Terpadu (PST) Badan Pusat Statistik Kota Probolinggo.');
 
   const normalize = (value: unknown) =>
     String(value ?? '').trim().toLowerCase();
@@ -30,9 +32,13 @@ export default function DisplayTV() {
     try {
       const { data: settings } = await supabase
         .from('app_settings')
-        .select('last_reset_timestamp')
+        .select('last_reset_timestamp, running_text')
         .eq('id', 1)
         .maybeSingle();
+
+      if (settings?.running_text) {
+        setRunningText(settings.running_text);
+      }
 
       const minTime =
         settings?.last_reset_timestamp || '1970-01-01T00:00:00.000Z';
@@ -110,6 +116,21 @@ export default function DisplayTV() {
         }
       )
       .subscribe();
+      
+    const channelSettings = supabase
+      .channel('tv-settings')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'app_settings',
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -119,6 +140,15 @@ export default function DisplayTV() {
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
+        })
+      );
+
+      setTanggal(
+        now.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
         })
       );
     }, 1000);
@@ -134,6 +164,7 @@ export default function DisplayTV() {
     return () => {
       supabase.removeChannel(channelQ);
       supabase.removeChannel(channelM);
+      supabase.removeChannel(channelSettings);
       clearInterval(timer);
       clearInterval(fallbackPoll);
       document.removeEventListener(
@@ -201,31 +232,34 @@ export default function DisplayTV() {
     <div className="h-dvh w-full bg-slate-900 flex flex-col overflow-hidden font-sans">
       <main className="flex-1 flex w-full overflow-hidden">
         <section className="w-[45%] h-full flex flex-col bg-slate-50 border-r border-slate-300 z-20 overflow-hidden">
-          <div className="shrink-0 h-[10vh] min-h-[70px] flex items-center justify-between px-4 lg:px-6 border-b-[5px] border-orange-500 bg-white shadow-sm z-10">
-            <div className="flex items-center gap-3 lg:gap-4">
+          <div className="shrink-0 h-[11vh] min-h-[75px] flex items-center justify-between px-4 lg:px-6 border-b-[5px] border-orange-500 bg-white shadow-sm z-10">
+            <div className="flex items-center gap-3 min-w-0">
               <img
                 src="/logoBPS.jpg"
                 alt="Logo"
-                className="h-10 lg:h-12 w-auto object-contain"
+                className="h-10 lg:h-12 w-auto object-contain shrink-0"
               />
 
-              <div className="flex flex-col justify-center">
-                <h1 className="text-[clamp(10px,1.2vw,16px)] font-black text-blue-700 tracking-widest uppercase leading-tight">
+              <div className="flex flex-col justify-center min-w-0">
+                <h1 className="text-[clamp(11px,1.2vw,15px)] font-black text-blue-700 tracking-wider uppercase leading-tight truncate">
                   Badan Pusat Statistik
                 </h1>
 
-                <h2 className="text-[clamp(10px,1.2vw,16px)] font-black text-slate-400 tracking-widest uppercase leading-tight">
+                <h2 className="text-[clamp(11px,1.2vw,15px)] font-black text-slate-400 tracking-wider uppercase leading-tight truncate">
                   Kota Probolinggo
                 </h2>
               </div>
             </div>
 
-            <div className="flex items-center">
-              <div className="bg-blue-50 px-3 py-1.5 lg:px-4 lg:py-2 border border-blue-200 rounded-lg shadow-inner">
-                <span className="text-[clamp(16px,2vw,30px)] font-black text-blue-900 font-mono tracking-wider">
+            <div className="flex flex-col items-end shrink-0 pl-2">
+              <div className="bg-blue-50 px-3 py-1 border border-blue-200 rounded-lg shadow-inner mb-1">
+                <span className="text-[clamp(14px,1.6vw,22px)] font-black text-blue-900 font-mono tracking-wider leading-none">
                   {waktu || '00:00:00'}
                 </span>
               </div>
+              <span className="text-[clamp(9px,0.9vw,12px)] font-bold text-slate-500 tracking-tight uppercase text-right leading-none">
+                {tanggal || ''}
+              </span>
             </div>
           </div>
 
@@ -482,18 +516,7 @@ export default function DisplayTV() {
             <div className="flex-1 whitespace-nowrap overflow-hidden relative h-full flex items-center min-w-0">
               <div className="animate-[marquee_25s_linear_infinite] inline-block">
                 <span className="text-[clamp(14px,1.5vw,22px)] font-bold text-white tracking-wider mx-6 lg:mx-8">
-                  Selamat Datang di Pelayanan Statistik Terpadu (PST)
-                  Badan Pusat Statistik Kota Probolinggo. Siap Melayani
-                  dengan Cepat dan Tepat.
-                </span>
-
-                <span className="text-[clamp(14px,1.5vw,22px)] font-black text-yellow-400 mx-2 lg:mx-4">
-                  •
-                </span>
-
-                <span className="text-[clamp(14px,1.5vw,22px)] font-bold text-white tracking-wider mx-6 lg:mx-8">
-                  Silakan scan QR Code di layar untuk mengambil nomor
-                  antrean melalui HP Anda.
+                  {runningText}
                 </span>
               </div>
             </div>
