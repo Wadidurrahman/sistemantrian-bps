@@ -9,6 +9,7 @@ import QueueTable from '@/components/admin/QueueTable';
 import AdminFooter from '@/components/admin/AdminFooter';
 import DisplaySettingsModal from '@/components/admin/DisplaySettingsModal';
 import DataMasukModal from '@/components/admin/DataMasukModal';
+import HistoryAntreanModal from '@/components/admin/HistoryAntreanModal';
 import { AlertTriangle, X } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -24,6 +25,8 @@ export default function AdminDashboard() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDisplayModal, setShowDisplayModal] = useState(false);
   const [showDataModal, setShowDataModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [needsBackup, setNeedsBackup] = useState(false);
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('bps_admin_auth');
@@ -31,6 +34,22 @@ export default function AdminDashboard() {
       setIsLoggedIn(true);
     }
   }, []);
+
+  const fetchBackupStatus = async () => {
+    const { data: settings } = await supabase.from('app_settings').select('last_backup_timestamp').eq('id', 1).single();
+    if (settings?.last_backup_timestamp) {
+      const backupDate = new Date(settings.last_backup_timestamp);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - backupDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 14) {
+        setNeedsBackup(true);
+      }
+    } else {
+      await supabase.from('app_settings').update({ last_backup_timestamp: new Date().toISOString() }).eq('id', 1);
+    }
+  };
 
   const fetchData = async () => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
@@ -46,12 +65,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isLoggedIn) return;
     fetchData();
+    fetchBackupStatus();
 
     const channelQ = supabase.channel('admin-q').on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => fetchData()).subscribe();
-    
-    const channelB = supabase.channel('admin-buku-tamu').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buku_tamu' }, () => {
-      fetchData();
-    }).subscribe();
+    const channelB = supabase.channel('admin-buku-tamu').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buku_tamu' }, () => fetchData()).subscribe();
 
     const timer = setInterval(() => {
       const now = new Date();
@@ -63,7 +80,7 @@ export default function AdminDashboard() {
 
     return () => { 
       supabase.removeChannel(channelQ); 
-      // supabase.removeChannel(channelB); 
+      supabase.removeChannel(channelB); 
       clearInterval(timer); 
       document.removeEventListener('fullscreenchange', handleFs);
     };
@@ -102,10 +119,19 @@ export default function AdminDashboard() {
     setShowResetModal(false);
   };
 
-  const handleExportExcel = async () => {
-    if (queues.length === 0 && bukuTamu.length === 0) return alert('Belum ada data untuk di-export.');
-    
-    const { data: feedbackData } = await supabase.from('queues').select('*').not('feedback', 'is', null);
+  const handleExportExcel = async (isMandatoryBackup = false) => {
+    const { data: settings } = await supabase.from('app_settings').select('last_backup_timestamp').eq('id', 1).single();
+    const minTime = settings?.last_backup_timestamp || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: exportQueues } = await supabase.from('queues').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+    const { data: exportBukuTamu } = await supabase.from('buku_tamu').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+
+    if ((!exportQueues || exportQueues.length === 0) && (!exportBukuTamu || exportBukuTamu.length === 0)) {
+      alert('Belum ada data untuk di-export.');
+      return;
+    }
+
+    const feedbackData = exportQueues?.filter((q: any) => q.feedback || q.rating) || [];
 
     let table = '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">';
     
@@ -117,7 +143,7 @@ export default function AdminDashboard() {
     });
     table += '</tr></thead><tbody>';
 
-    ([...queues]).reverse().forEach((q, index) => {
+    (exportQueues || []).forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
       const bintang = q.rating ? `${q.rating} Bintang` : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
@@ -125,8 +151,8 @@ export default function AdminDashboard() {
       table += '<tr>';
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${index + 1}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center; font-weight: bold;">${q.queue_number}</td>`;
-      table += `<td style="padding: 8px; border: 1px solid #000;">${q.guest_name}</td>`;
-      table += `<td style="padding: 8px; border: 1px solid #000;">${q.service_type}</td>`;
+      table += `<td style="padding: 8px; border: 1px solid #000;">${q.guest_name || '-'}</td>`;
+      table += `<td style="padding: 8px; border: 1px solid #000;">${q.service_type || '-'}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${meja}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${q.status || 'Menunggu'}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${wMasuk}</td>`;
@@ -143,12 +169,12 @@ export default function AdminDashboard() {
     });
     table += '</tr></thead><tbody>';
 
-    if (feedbackData && feedbackData.length > 0) {
-      feedbackData.forEach((f, idx) => {
+    if (feedbackData.length > 0) {
+      feedbackData.forEach((f: any, idx: number) => {
         table += '<tr>';
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${idx + 1}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000;">${f.guest_name}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.queue_number}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${f.guest_name || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.queue_number || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.rating ? `${f.rating} Bintang` : '-'}</td>`;
         table += `<td colspan="3" style="padding: 8px; border: 1px solid #000;">${f.feedback || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${new Date(f.updated_at || f.created_at).toLocaleString('id-ID')}</td>`;
@@ -167,8 +193,8 @@ export default function AdminDashboard() {
     });
     table += '</tr></thead><tbody>';
 
-    if (bukuTamu && bukuTamu.length > 0) {
-      bukuTamu.forEach((b, idx) => {
+    if (exportBukuTamu && exportBukuTamu.length > 0) {
+      exportBukuTamu.forEach((b, idx) => {
         table += '<tr>';
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${idx + 1}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000;">${b.nama || '-'}</td>`;
@@ -192,6 +218,11 @@ export default function AdminDashboard() {
     document.body.appendChild(link); 
     link.click(); 
     document.body.removeChild(link);
+
+    if (isMandatoryBackup === true) {
+      await supabase.from('app_settings').update({ last_backup_timestamp: new Date().toISOString() }).eq('id', 1);
+      setNeedsBackup(false);
+    }
   };
 
   const playAudioAndSpeak = (q: any) => {
@@ -206,10 +237,7 @@ export default function AdminDashboard() {
 
       audio.onended = () => {
         if ('speechSynthesis' in window) {
-          const layananSuara = q.service_type === 'Konsultasi Statistik' 
-            ? 'Meja Konsultasi Statistik' 
-            : 'Meja Pelayanan Pengaduan';
-            
+          const layananSuara = q.service_type === 'Konsultasi Statistik' ? 'Meja Konsultasi Statistik' : 'Meja Pelayanan Pengaduan';
           const textToSpeak = `Perhatian kepada Nomor antrean, ${q.queue_number}. Atas nama, ${q.guest_name}. Silakan menuju, ${layananSuara}. Terima kasih.`;
           
           const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -254,12 +282,33 @@ export default function AdminDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-[#ecf0f5] font-sans overflow-hidden relative">
+      {needsBackup && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center border border-slate-200 animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle size={40} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Wajib Backup Data!</h2>
+            <p className="text-sm font-medium text-slate-600 mb-8 leading-relaxed">
+              Sudah mencapai batas 14 hari sejak backup terakhir. Untuk mencegah hilangnya history dan penumpukan data, 
+              sistem mengunci layar operasional. Anda <span className="font-bold text-red-600">wajib</span> mengunduh laporan Excel sekarang.
+            </p>
+            <button 
+              onClick={() => handleExportExcel(true)}
+              className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
+            >
+              Unduh Backup Excel (2 Minggu)
+            </button>
+          </div>
+        </div>
+      )}
+
       <AdminHeader 
         waktu={waktu} 
         isFullscreen={isFullscreen} 
         toggleFullScreen={toggleFullScreen} 
         handleReset={() => setShowResetModal(true)} 
-        handleExportCSV={handleExportExcel} 
+        handleExportCSV={() => handleExportExcel(false)} 
         getCurrentDate={getCurrentDate} 
         onOpenSettings={() => setShowDisplayModal(true)}
         onLogout={handleLogout} 
@@ -279,6 +328,7 @@ export default function AdminDashboard() {
             handlePanggil={handlePanggil}
             handlePanggilUlang={handlePanggilUlang}
             handleSelesai={handleSelesai}
+            onOpenHistory={() => setShowHistoryModal(true)}
           />
           
           <div className="w-72 bg-white border border-slate-200 rounded-sm shadow-sm flex flex-col shrink-0">
@@ -321,6 +371,12 @@ export default function AdminDashboard() {
         isOpen={showDataModal} 
         onClose={() => setShowDataModal(false)} 
         registrations={bukuTamu} 
+      />
+
+      <HistoryAntreanModal 
+        isOpen={showHistoryModal} 
+        onClose={() => setShowHistoryModal(false)} 
+        queues={queues} 
       />
 
       {showResetModal && (
