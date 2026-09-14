@@ -10,7 +10,7 @@ import AdminFooter from '@/components/admin/AdminFooter';
 import DisplaySettingsModal from '@/components/admin/DisplaySettingsModal';
 import DataMasukModal from '@/components/admin/DataMasukModal';
 import HistoryAntreanModal from '@/components/admin/HistoryAntreanModal';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, Filter, Calendar, ChevronDown } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -27,6 +27,14 @@ export default function AdminDashboard() {
   const [showDataModal, setShowDataModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [needsBackup, setNeedsBackup] = useState(false);
+
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [loadingFilter, setLoadingFilter] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [filteredQueues, setFilteredQueues] = useState<any[]>([]);
+  const [filteredBukuTamu, setFilteredBukuTamu] = useState<any[]>([]);
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('bps_admin_auth');
@@ -119,14 +127,53 @@ export default function AdminDashboard() {
     setShowResetModal(false);
   };
 
+  const handleApplyFilter = async () => {
+    if (!filterStart || !filterEnd) return alert('Silakan pilih rentang waktu awal dan akhir.');
+    setLoadingFilter(true);
+    
+    const { data: qData } = await supabase.from('queues').select('*').gte('created_at', new Date(filterStart).toISOString()).lte('created_at', new Date(filterEnd).toISOString()).order('created_at', { ascending: false });
+    const { data: bData } = await supabase.from('buku_tamu').select('*').gte('created_at', new Date(filterStart).toISOString()).lte('created_at', new Date(filterEnd).toISOString()).order('created_at', { ascending: false });
+    
+    setFilteredQueues(qData || []);
+    setFilteredBukuTamu(bData || []);
+    setIsFiltered(true);
+    setLoadingFilter(false);
+    setShowDatePicker(false);
+  };
+
+  const handleResetFilter = () => {
+    setIsFiltered(false);
+    setFilterStart('');
+    setFilterEnd('');
+    setShowDatePicker(false);
+  };
+
+  const formatRangeDisplay = () => {
+    if (!filterStart || !filterEnd || !isFiltered) return 'PILIH RENTANG WAKTU';
+    const start = new Date(filterStart).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    const end = new Date(filterEnd).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    return `${start} - ${end}`;
+  };
+
   const handleExportExcel = async (isMandatoryBackup = false) => {
-    const { data: settings } = await supabase.from('app_settings').select('last_backup_timestamp').eq('id', 1).single();
-    const minTime = settings?.last_backup_timestamp || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    let exportQueues = [];
+    let exportBukuTamu = [];
 
-    const { data: exportQueues } = await supabase.from('queues').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
-    const { data: exportBukuTamu } = await supabase.from('buku_tamu').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+    if (isMandatoryBackup || !isFiltered) {
+      const { data: settings } = await supabase.from('app_settings').select('last_backup_timestamp').eq('id', 1).single();
+      const minTime = settings?.last_backup_timestamp || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    if ((!exportQueues || exportQueues.length === 0) && (!exportBukuTamu || exportBukuTamu.length === 0)) {
+      const { data: q } = await supabase.from('queues').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+      const { data: b } = await supabase.from('buku_tamu').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
+      
+      exportQueues = q || [];
+      exportBukuTamu = b || [];
+    } else {
+      exportQueues = filteredQueues;
+      exportBukuTamu = filteredBukuTamu;
+    }
+
+    if (exportQueues.length === 0 && exportBukuTamu.length === 0) {
       alert('Belum ada data untuk di-export.');
       return;
     }
@@ -143,7 +190,7 @@ export default function AdminDashboard() {
     });
     table += '</tr></thead><tbody>';
 
-    (exportQueues || []).forEach((q, index) => {
+    (exportQueues || []).reverse().forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
       const bintang = q.rating ? `${q.rating} Bintang` : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
@@ -214,7 +261,9 @@ export default function AdminDashboard() {
     const blob = new Blob([table], { type: 'application/vnd.ms-excel' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `Laporan_PST_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.xls`);
+    
+    const filterTag = isFiltered ? `_Filtered` : '';
+    link.setAttribute('download', `Laporan_PST_${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}${filterTag}.xls`);
     document.body.appendChild(link); 
     link.click(); 
     document.body.removeChild(link);
@@ -222,6 +271,7 @@ export default function AdminDashboard() {
     if (isMandatoryBackup === true) {
       await supabase.from('app_settings').update({ last_backup_timestamp: new Date().toISOString() }).eq('id', 1);
       setNeedsBackup(false);
+      alert('Backup berhasil diamankan! Layar operasional telah dibuka kembali.');
     }
   };
 
@@ -270,14 +320,17 @@ export default function AdminDashboard() {
     return <LoginScreen pin={pin} setPin={setPin} loginError={loginError} setLoginError={setLoginError} handleLogin={handleLogin} />;
   }
 
+  const displayQueues = isFiltered ? filteredQueues : queues;
+  const displayBukuTamu = isFiltered ? filteredBukuTamu : bukuTamu;
+
   const statsObj = {
-    total: queues.length,
-    waiting: queues.filter(q => q.status !== 'Selesai' && q.status !== 'Dipanggil').length,
-    finished: queues.filter(q => q.status === 'Selesai').length,
+    total: displayQueues.length,
+    waiting: displayQueues.filter(q => q.status !== 'Selesai' && q.status !== 'Dipanggil').length,
+    finished: displayQueues.filter(q => q.status === 'Selesai').length,
   };
 
-  const ksCount = queues.filter(q => q.service_type === 'Konsultasi Statistik').length;
-  const pgCount = queues.filter(q => q.service_type === 'Pelayanan Pengaduan').length;
+  const ksCount = displayQueues.filter(q => q.service_type === 'Konsultasi Statistik').length;
+  const pgCount = displayQueues.filter(q => q.service_type === 'Pelayanan Pengaduan').length;
   const maxCount = Math.max(ksCount, pgCount, 1);
 
   return (
@@ -315,9 +368,10 @@ export default function AdminDashboard() {
       />
 
       <main className="flex-1 w-full px-6 py-4 flex flex-col gap-3 overflow-hidden max-w-[1600px] mx-auto">
+        
         <StatsCards 
           stats={statsObj} 
-          registrationsCount={bukuTamu.length}
+          registrationsCount={displayBukuTamu.length}
           onOpenDataMasuk={() => setShowDataModal(true)}
         />
 
@@ -332,10 +386,74 @@ export default function AdminDashboard() {
           />
           
           <div className="w-72 bg-white border border-slate-200 rounded-sm shadow-sm flex flex-col shrink-0">
-            <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50">
-              <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Statistik Layanan</h3>
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 shrink-0 relative">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                  <Filter size={12} className="text-blue-600"/> Statistik
+                </h3>
+                {isFiltered && (
+                  <button 
+                    onClick={handleResetFilter} 
+                    className="text-[9px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider hover:bg-slate-300 transition-colors"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="w-full flex items-center justify-between bg-white border border-slate-300 px-3 py-2 rounded-sm text-[10px] font-bold text-slate-700 hover:border-blue-500 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar size={12} className="text-slate-400" />
+                  <span>{formatRangeDisplay()}</span>
+                </div>
+                <ChevronDown size={12} className="text-slate-400" />
+              </button>
+
+              {showDatePicker && (
+                <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 shadow-xl rounded-sm p-3 z-50 animate-in fade-in zoom-in-95">
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Waktu Mulai</label>
+                      <input 
+                        type="datetime-local" 
+                        value={filterStart} 
+                        onChange={e => setFilterStart(e.target.value)} 
+                        className="w-full text-[10px] p-1.5 border border-slate-300 rounded-sm focus:outline-none focus:border-blue-900 mt-1 bg-slate-50" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Waktu Akhir</label>
+                      <input 
+                        type="datetime-local" 
+                        value={filterEnd} 
+                        onChange={e => setFilterEnd(e.target.value)} 
+                        className="w-full text-[10px] p-1.5 border border-slate-300 rounded-sm focus:outline-none focus:border-blue-900 mt-1 bg-slate-50" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <button 
+                        onClick={() => setShowDatePicker(false)}
+                        className="flex-1 bg-slate-100 text-slate-600 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm hover:bg-slate-200 transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button 
+                        onClick={handleApplyFilter} 
+                        disabled={loadingFilter} 
+                        className="flex-1 bg-blue-900 text-white py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-sm hover:bg-blue-800 transition-colors disabled:opacity-70"
+                      >
+                        {loadingFilter ? 'Proses...' : 'Terapkan'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex-1 p-4 flex flex-col justify-end gap-4">
+
+            <div className="flex-1 p-4 flex flex-col justify-end gap-4 min-h-0">
               <div className="flex flex-col gap-2 h-full justify-end">
                 <div className="flex items-end gap-6 h-40 border-b-2 border-l-2 border-slate-200 pl-4 pb-0 relative">
                   <div className="absolute -left-2 top-0 text-[9px] text-slate-400 font-bold">{maxCount}</div>
@@ -370,13 +488,13 @@ export default function AdminDashboard() {
       <DataMasukModal 
         isOpen={showDataModal} 
         onClose={() => setShowDataModal(false)} 
-        registrations={bukuTamu} 
+        registrations={displayBukuTamu} 
       />
 
       <HistoryAntreanModal 
         isOpen={showHistoryModal} 
         onClose={() => setShowHistoryModal(false)} 
-        queues={queues} 
+        queues={displayQueues} 
       />
 
       {showResetModal && (
