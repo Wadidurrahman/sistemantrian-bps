@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
-import { Maximize, Minimize } from 'lucide-react';
+import { Maximize, Minimize, Users, Clock, CheckCircle } from 'lucide-react';
 
 export default function DisplayTV() {
   const [queues, setQueues] = useState<any[]>([]);
@@ -228,6 +228,10 @@ export default function DisplayTV() {
         new Date(b.created_at).getTime()
     );
 
+  const totalAntrean = queues.length;
+  const antreanSelesai = queues.filter((q) => normalize(q.status) === 'selesai').length;
+  const sedangMenunggu = daftarMenunggu.length;
+
   return (
     <div className="h-dvh w-full bg-slate-900 flex flex-col overflow-hidden font-sans">
       <main className="flex-1 flex w-full overflow-hidden">
@@ -263,40 +267,40 @@ export default function DisplayTV() {
             </div>
           </div>
 
-          <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-gradient-to-b from-blue-50/80 to-white">
+          <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-[#0070c0]">
             <div className="flex items-center gap-2 mb-1 shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
 
-              <h3 className="text-[clamp(11px,1.4vw,18px)] font-black text-slate-700 tracking-[0.15em] uppercase text-center">
+              <h3 className="text-[clamp(11px,1.4vw,18px)] font-black text-white tracking-[0.15em] uppercase text-center">
                 MEJA 1 : KONSULTASI STATISTIK
               </h3>
             </div>
 
             {aktifM1 ? (
               <div className="flex flex-col items-center justify-center flex-1 w-full min-h-0 my-1">
-                <p className="text-[clamp(9px,0.9vw,13px)] font-bold text-slate-400 uppercase tracking-widest shrink-0">
+                <p className="text-[clamp(9px,0.9vw,13px)] font-bold text-blue-100 uppercase tracking-widest shrink-0">
                   SEDANG MELAYANI
                 </p>
 
-                <span className="text-[clamp(45px,8vw,120px)] font-black text-blue-900 tracking-tighter leading-none drop-shadow-sm my-1">
+                <span className="text-[clamp(45px,8vw,120px)] font-black text-white tracking-tighter leading-none drop-shadow-sm my-1">
                   {getQueueNumber(aktifM1?.queue_number)}
                 </span>
 
-                <p className="text-[clamp(12px,1.3vw,20px)] font-bold text-slate-700 lowercase truncate max-w-full px-4 shrink-0">
+                <p className="text-[clamp(12px,1.3vw,20px)] font-bold text-white lowercase truncate max-w-full px-4 shrink-0">
                   {aktifM1?.guest_name || ''}
                 </p>
 
-                <p className="text-[clamp(9px,1.1vw,15px)] font-bold text-emerald-600 lowercase tracking-wide mt-1 shrink-0">
+                <p className="text-[clamp(9px,1.1vw,15px)] font-bold text-emerald-300 lowercase tracking-wide mt-1 shrink-0">
                   status: sedang dilayani
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center flex-1 w-full min-h-0 my-2">
-                <p className="text-[clamp(10px,1vw,14px)] font-bold text-slate-400 uppercase tracking-widest shrink-0 mb-3">
+                <p className="text-[clamp(10px,1vw,14px)] font-bold text-blue-200 uppercase tracking-widest shrink-0 mb-3">
                   TIDAK ADA ANTREAN
                 </p>
                 <div className="flex items-center justify-center w-full my-2">
-                  <span className="text-[clamp(40px,7vw,110px)] font-black text-slate-300 tracking-tighter leading-none drop-shadow-sm">
+                  <span className="text-[clamp(40px,7vw,110px)] font-black text-white/50 tracking-tighter leading-none drop-shadow-sm">
                     --
                   </span>
                 </div>
@@ -304,55 +308,54 @@ export default function DisplayTV() {
             )}
           </div>
 
-          <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-gradient-to-b from-orange-50/80 to-white">
+          <div className="flex-[2] min-h-0 flex flex-col items-center justify-center p-4 border-b border-slate-200 relative bg-[#f39c12]">
             <div className="flex items-center gap-2 mb-1 shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+              <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
 
-              <h3 className="text-[clamp(11px,1.4vw,18px)] font-black text-slate-700 tracking-[0.15em] uppercase text-center">
+              <h3 className="text-[clamp(11px,1.4vw,18px)] font-black text-white tracking-[0.15em] uppercase text-center">
                 MEJA 2 : PELAYANAN PENGADUAN
               </h3>
             </div>
 
             {aktifM2 ? (
               <div className="flex flex-col items-center justify-center flex-1 w-full min-h-0 my-1">
-                <p className="text-[clamp(9px,0.9vw,13px)] font-bold text-slate-400 uppercase tracking-widest shrink-0">
+                <p className="text-[clamp(9px,0.9vw,13px)] font-bold text-orange-100 uppercase tracking-widest shrink-0">
                   SEDANG MELAYANI
                 </p>
 
-                <span className="text-[clamp(45px,8vw,120px)] font-black text-orange-600 tracking-tighter leading-none drop-shadow-sm my-1">
+                <span className="text-[clamp(45px,8vw,120px)] font-black text-white tracking-tighter leading-none drop-shadow-sm my-1">
                   {getQueueNumber(aktifM2?.queue_number)}
                 </span>
 
-                <p className="text-[clamp(12px,1.3vw,20px)] font-bold text-slate-700 lowercase truncate max-w-full px-4 shrink-0">
+                <p className="text-[clamp(12px,1.3vw,20px)] font-bold text-white lowercase truncate max-w-full px-4 shrink-0">
                   {aktifM2?.guest_name || ''}
                 </p>
 
-                <p className="text-[clamp(9px,1.1vw,15px)] font-bold text-orange-600 lowercase tracking-wide mt-1 shrink-0">
+                <p className="text-[clamp(9px,1.1vw,15px)] font-bold text-green-200 lowercase tracking-wide mt-1 shrink-0">
                   status: sedang dilayani
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center flex-1 w-full min-h-0 my-2">
-                <p className="text-[clamp(10px,1vw,14px)] font-bold text-slate-400 uppercase tracking-widest shrink-0 mb-3">
+                <p className="text-[clamp(10px,1vw,14px)] font-bold text-orange-200 uppercase tracking-widest shrink-0 mb-3">
                   TIDAK ADA ANTREAN
                 </p>
                 <div className="flex items-center justify-center w-full my-2">
-                  <span className="text-[clamp(40px,7vw,110px)] font-black text-slate-300 tracking-tighter leading-none drop-shadow-sm">
+                  <span className="text-[clamp(40px,7vw,110px)] font-black text-white/50 tracking-tighter leading-none drop-shadow-sm">
                     --
                   </span>
                 </div>
               </div>
             )}
           </div>
-
-          <div className="flex-[1.5] min-h-0 flex flex-col bg-slate-50 p-3 lg:p-4 shadow-inner shrink-0">
+          <div className="flex-[1.5] min-h-0 flex flex-col bg-[#00a65a] p-3 lg:p-4 shadow-inner shrink-0">
             <div className="flex justify-between items-center mb-2 shrink-0">
-              <h3 className="text-[clamp(10px,1.1vw,14px)] font-black text-blue-900 tracking-widest uppercase">
+              <h3 className="text-[clamp(10px,1.1vw,14px)] font-black text-white tracking-widest uppercase">
                 Antrean Berikutnya
               </h3>
 
-              <span className="bg-blue-600 text-white text-[clamp(9px,1vw,11px)] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
-                {daftarMenunggu.length} Menunggu
+              <span className="bg-green-800 text-white text-[clamp(9px,1vw,11px)] font-bold px-2.5 py-0.5 rounded-full shadow-sm border border-green-700">
+                {sedangMenunggu} Menunggu
               </span>
             </div>
 
@@ -363,7 +366,7 @@ export default function DisplayTV() {
                   className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-sm lg:text-base font-black text-blue-900 font-mono tracking-tight shrink-0">
+                    <span className="text-sm lg:text-base font-black text-green-700 font-mono tracking-tight shrink-0">
                       {getQueueNumber(q.queue_number)}
                     </span>
 
@@ -392,7 +395,7 @@ export default function DisplayTV() {
 
               {daftarMenunggu.length === 0 && (
                 <div className="h-full flex items-center justify-center">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <p className="text-xs font-bold text-green-100 uppercase tracking-widest">
                     Belum Ada Antrean
                   </p>
                 </div>
