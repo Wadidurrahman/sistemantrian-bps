@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Loader2, User, Star, CheckCircle2, Clock, Volume2, RotateCcw, XCircle } from 'lucide-react';
+import { Loader2, User, CheckCircle2, Clock, Volume2, XCircle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function StatusAntrian() {
@@ -12,9 +12,6 @@ export default function StatusAntrian() {
   const router = useRouter();
   const [queue, setQueue] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  const [skmSubmitted, setSkmSubmitted] = useState(false);
   const [mounted, setMounted] = useState(false);
   
   const ratingSectionRef = useRef<HTMLDivElement>(null);
@@ -34,11 +31,6 @@ export default function StatusAntrian() {
       
       if (!error && data) {
         setQueue(data);
-        if (data.status === 'Selesai' && data.rating) {
-          setSkmSubmitted(true);
-          setRating(data.rating);
-          setFeedback(data.feedback || '');
-        }
       }
       setLoading(false);
     };
@@ -54,7 +46,7 @@ export default function StatusAntrian() {
           const updated = payload.new;
           setQueue(updated);
 
-          // Jika status berubah jadi Selesai, auto scroll ke form penilaian agar tamu langsung lihat
+          // Jika status berubah jadi Selesai, auto scroll ke tombol SKD
           if (updated.status === 'Selesai') {
             setTimeout(() => {
               ratingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,28 +68,6 @@ export default function StatusAntrian() {
       supabase.removeChannel(channel);
     };
   }, [id]);
-
-  const submitSKM = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (rating === 0) return alert('Silakan pilih rating bintang terlebih dahulu.');
-    
-    const { error } = await supabase
-      .from('queues')
-      .update({ 
-        rating: rating, 
-        feedback: feedback,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (error) {
-      alert('Gagal mengirim penilaian: ' + error.message);
-      return;
-    }
-
-    setSkmSubmitted(true);
-    alert('Terima kasih! Penilaian dan saran Anda berhasil disimpan.');
-  };
 
   const handleBatalkanAntrean = async () => {
     const confirm = window.confirm('Apakah Anda yakin ingin membatalkan antrean ini?');
@@ -208,62 +178,32 @@ export default function StatusAntrian() {
             )}
           </div>
 
-          {/* Bagian Form Penilaian yang otomatis difokuskan saat Selesai */}
+          {/* Bagian Tautan SKD - Mode Wajib Isi */}
           <div ref={ratingSectionRef}>
-            {queue.status === 'Selesai' && !skmSubmitted && (
-              <form onSubmit={submitSKM} className="mt-6 pt-5 border-t-2 border-orange-200 bg-orange-50/50 p-4 rounded-2xl text-left">
-                <h3 className="font-black text-slate-800 text-xs uppercase tracking-wider mb-1 text-center">Survei Kepuasan & Masukan</h3>
-                <p className="text-[10px] text-orange-600 mb-3 font-bold uppercase tracking-widest text-center">Silakan Berikan Penilaian Anda</p>
-                
-                <div className="flex justify-center gap-2 mb-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      type="button"
-                      key={star}
-                      onClick={() => setRating(star)}
-                      className="hover:scale-110 transition-transform focus:outline-none"
-                    >
-                      <Star
-                        size={36}
-                        className={`transition-colors ${rating >= star ? 'fill-yellow-400 text-yellow-400 drop-shadow-sm' : 'text-slate-200 fill-white'}`}
-                      />
-                    </button>
-                  ))}
+            {queue.status === 'Selesai' && (
+              <div className="mt-6 pt-5 border-t-2 border-orange-200 bg-orange-50/50 p-4 rounded-2xl text-center flex flex-col gap-4">
+                <div className="flex flex-col items-center gap-1 text-slate-800 bg-white p-4 rounded-xl w-full border border-slate-200 shadow-sm">
+                  <p className="font-bold text-xs uppercase tracking-widest text-orange-600 mb-1">WAJIB DIISI</p>
+                  <p className="font-medium text-[10px] text-slate-500 mb-4 px-2">Untuk menyelesaikan pelayanan, silakan berikan penilaian Anda melalui tautan berikut.</p>
+                  
+                  <a 
+                    href="https://s.bps.go.id/SKD-3574"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      // Hapus data sesi antrean agar aplikasi reset
+                      localStorage.removeItem('bps_active_queue_id');
+                      localStorage.removeItem('bps_active_queue');
+                      // Beri sedikit jeda agar tab SKD terbuka dulu, lalu redirect tab ini ke Beranda
+                      setTimeout(() => {
+                        router.push('/');
+                      }, 500);
+                    }}
+                    className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center animate-pulse hover:animate-none"
+                  >
+                    Berikan Penilaian Pelayanan
+                  </a>
                 </div>
-
-                <div className="space-y-1 mb-4">
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider ml-1">
-                    Kritik & Saran / Masukan
-                  </label>
-                  <textarea
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Tuliskan masukan untuk pelayanan kami..."
-                    className="w-full p-3 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-orange-500 resize-none h-20 bg-white"
-                  ></textarea>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-orange-600/30 transition-all"
-                >
-                  Kirim Penilaian
-                </button>
-              </form>
-            )}
-
-            {queue.status === 'Selesai' && skmSubmitted && (
-              <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col items-center gap-4">
-                <div className="flex flex-col items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase tracking-widest bg-emerald-50 p-4 rounded-2xl w-full border border-emerald-100">
-                  <Star size={24} className="fill-emerald-600 mb-1" />
-                  Terima Kasih Atas Penilaian Anda!
-                </div>
-                <button
-                  onClick={handleKeluarSelesai}
-                  className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md"
-                >
-                  <RotateCcw size={16} /> Selesai & Kembali ke Menu Utama
-                </button>
               </div>
             )}
           </div>

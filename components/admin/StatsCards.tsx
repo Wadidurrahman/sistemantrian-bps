@@ -2,7 +2,7 @@
 
 import { Users, Clock, CheckCircle2, BellRing } from 'lucide-react';
 
-export default function StatsCards({ stats, registrationsCount, onOpenDataMasuk }: any) {
+export default function StatsCards({ stats, registrationsCount, onOpenDataMasuk, isHighlight = false }: any) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 shrink-0">
       <div className="bg-[#0073b7] rounded-sm shadow-sm p-4 flex flex-col justify-between relative overflow-hidden text-white">
@@ -28,10 +28,11 @@ export default function StatsCards({ stats, registrationsCount, onOpenDataMasuk 
           <span className="text-4xl font-black leading-none">{stats.finished}</span>
         </div>
       </div>
-      
       <div 
         onClick={onOpenDataMasuk} 
-        className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-sm shadow-sm p-4 flex flex-col justify-between relative overflow-hidden text-white cursor-pointer hover:shadow-lg transition-all active:scale-95 group"
+        className={`bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-sm shadow-sm p-4 flex flex-col justify-between relative overflow-hidden text-white cursor-pointer transition-all active:scale-95 group ${
+          isHighlight ? 'z-[50] ring-4 ring-indigo-300 ring-offset-2 scale-105 shadow-2xl' : 'hover:shadow-lg'
+        }`}
       >
         <div className="absolute -right-4 -top-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
           <BellRing size={100} />

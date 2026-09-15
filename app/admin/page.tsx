@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import LoginScreen from '@/components/admin/LoginScreen';
 import AdminHeader from '@/components/admin/AdminHeader';
@@ -10,7 +10,7 @@ import AdminFooter from '@/components/admin/AdminFooter';
 import DisplaySettingsModal from '@/components/admin/DisplaySettingsModal';
 import DataMasukModal from '@/components/admin/DataMasukModal';
 import HistoryAntreanModal from '@/components/admin/HistoryAntreanModal';
-import { AlertTriangle, X, Filter, Calendar, ChevronDown } from 'lucide-react';
+import { AlertTriangle, X, Filter, Calendar, ChevronDown, MoveRight } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -36,6 +36,10 @@ export default function AdminDashboard() {
   const [filteredQueues, setFilteredQueues] = useState<any[]>([]);
   const [filteredBukuTamu, setFilteredBukuTamu] = useState<any[]>([]);
 
+  // State baru untuk alert "Data Masuk"
+  const [showNewDataAlert, setShowNewDataAlert] = useState(false);
+  const previousBukuTamuLength = useRef(0);
+
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('bps_admin_auth');
     if (savedAuth === 'true') {
@@ -59,7 +63,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (isInitial = false) => {
     const { data: settings } = await supabase.from('app_settings').select('last_reset_timestamp').eq('id', 1).single();
     const minTime = settings?.last_reset_timestamp || '1970-01-01';
 
@@ -67,12 +71,20 @@ export default function AdminDashboard() {
     if (qData) setQueues(qData);
 
     const { data: bData } = await supabase.from('buku_tamu').select('*').gte('created_at', minTime).order('created_at', { ascending: false });
-    if (bData) setBukuTamu(bData);
+    if (bData) {
+      setBukuTamu(bData);
+      
+      // Deteksi tamu baru setelah load pertama
+      if (!isInitial && bData.length > previousBukuTamuLength.current && !showDataModal) {
+         setShowNewDataAlert(true);
+      }
+      previousBukuTamuLength.current = bData.length;
+    }
   };
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    fetchData();
+    fetchData(true);
     fetchBackupStatus();
 
     const channelQ = supabase.channel('admin-q').on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, () => fetchData()).subscribe();
@@ -178,14 +190,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    const feedbackData = exportQueues?.filter((q: any) => q.feedback || q.rating) || [];
-
     let table = '<table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">';
     
+    // TABEL 1: PST (Tanpa Rating)
     table += '<thead>';
-    table += '<tr><th colspan="8" style="font-size: 16px; font-weight: bold; padding: 15px; text-align: center; background-color: #f8f9fa;">LAPORAN PELAYANAN STATISTIK TERPADU (PST) - BPS KOTA PROBOLINGGO</th></tr>';
+    table += '<tr><th colspan="7" style="font-size: 16px; font-weight: bold; padding: 15px; text-align: center; background-color: #f8f9fa;">LAPORAN PELAYANAN STATISTIK TERPADU (PST) - BPS KOTA PROBOLINGGO</th></tr>';
     table += '<tr style="background-color: #1e3a8a; color: white; font-weight: bold;">';
-    ['No', 'Nomor Antrean', 'Nama Tamu', 'Layanan', 'Meja Layanan', 'Status', 'Waktu Masuk', 'Bintang Pelayanan'].forEach(h => { 
+    ['No', 'Nomor Antrean', 'Nama Tamu', 'Layanan', 'Meja Layanan', 'Status', 'Waktu Masuk'].forEach(h => { 
       table += `<th style="padding: 10px; border: 1px solid #000;">${h}</th>` 
     });
     table += '</tr></thead><tbody>';
@@ -193,7 +204,6 @@ export default function AdminDashboard() {
     (exportQueues || []).reverse().forEach((q, index) => {
       const meja = q.service_type === 'Konsultasi Statistik' ? 'Meja 1' : 'Meja 2';
       const wMasuk = new Date(q.created_at).toLocaleTimeString('id-ID');
-      const bintang = q.rating ? `${q.rating} Bintang` : (q.status === 'Selesai' ? '-' : 'Belum Selesai');
       
       table += '<tr>';
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${index + 1}</td>`;
@@ -203,40 +213,16 @@ export default function AdminDashboard() {
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${meja}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${q.status || 'Menunggu'}</td>`;
       table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${wMasuk}</td>`;
-      table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${bintang}</td>`;
       table += '</tr>';
     });
     table += '</tbody>';
 
-    table += '<thead><tr><td colspan="8" style="border: none; height: 30px;"></td></tr>';
-    table += '<tr><th colspan="8" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">REKAPITULASI KRITIK & SARAN PENGUNJUNG</th></tr>';
+    // TABEL 2: BUKU TAMU (Dengan Fix Nomor HP)
+    table += '<thead><tr><td colspan="7" style="border: none; height: 30px;"></td></tr>';
+    table += '<tr><th colspan="7" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">DATA BUKU TAMU PENGUNJUNG</th></tr>';
     table += '<tr style="background-color: #0f172a; color: white; font-weight: bold;">';
-    ['No', 'Nama Pengunjung', 'Nomor Antrean', 'Rating', 'Kritik & Saran', 'Waktu Kirim', '', ''].forEach((h, idx) => {
-      if (idx < 6) table += `<th colspan="${idx === 4 ? 3 : 1}" style="padding: 10px; border: 1px solid #000;">${h}</th>`;
-    });
-    table += '</tr></thead><tbody>';
-
-    if (feedbackData.length > 0) {
-      feedbackData.forEach((f: any, idx: number) => {
-        table += '<tr>';
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${idx + 1}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000;">${f.guest_name || '-'}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.queue_number || '-'}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${f.rating ? `${f.rating} Bintang` : '-'}</td>`;
-        table += `<td colspan="3" style="padding: 8px; border: 1px solid #000;">${f.feedback || '-'}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${new Date(f.updated_at || f.created_at).toLocaleString('id-ID')}</td>`;
-        table += '</tr>';
-      });
-    } else {
-      table += '<tr><td colspan="8" style="padding: 10px; text-align: center; border: 1px solid #000;">Belum ada data kritik dan saran.</td></tr>';
-    }
-    table += '</tbody>';
-
-    table += '<thead><tr><td colspan="8" style="border: none; height: 30px;"></td></tr>';
-    table += '<tr><th colspan="8" style="font-size: 14px; font-weight: bold; padding: 12px; text-align: center; background-color: #e2e8f0; border: 1px solid #000;">DATA BUKU TAMU PENGUNJUNG</th></tr>';
-    table += '<tr style="background-color: #0f172a; color: white; font-weight: bold;">';
-    ['No', 'Nama Tamu', 'Instansi/Asal', 'Tujuan', 'Keperluan', 'Kontak', 'Waktu Kunjungan', ''].forEach((h, idx) => {
-      if (idx < 7) table += `<th colspan="${idx === 4 ? 2 : 1}" style="padding: 10px; border: 1px solid #000;">${h}</th>`;
+    ['No', 'Nama Tamu', 'Instansi/Asal', 'Tujuan', 'Keperluan', 'Kontak', 'Waktu Kunjungan'].forEach((h) => {
+      table += `<th style="padding: 10px; border: 1px solid #000;">${h}</th>`;
     });
     table += '</tr></thead><tbody>';
 
@@ -247,13 +233,14 @@ export default function AdminDashboard() {
         table += `<td style="padding: 8px; border: 1px solid #000;">${b.nama || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000;">${b.instansi || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000;">${b.tujuan || '-'}</td>`;
-        table += `<td colspan="2" style="padding: 8px; border: 1px solid #000;">${b.keperluan || '-'}</td>`;
-        table += `<td style="padding: 8px; border: 1px solid #000;">${b.kontak || '-'}</td>`;
+        table += `<td style="padding: 8px; border: 1px solid #000;">${b.keperluan || '-'}</td>`;
+        // FIX NOMOR HP: Ditambah tanda kutip tunggal di awal
+        table += `<td style="padding: 8px; border: 1px solid #000; mso-number-format:'\\@';">'${b.kontak || '-'}</td>`;
         table += `<td style="padding: 8px; border: 1px solid #000; text-align: center;">${new Date(b.created_at).toLocaleString('id-ID')}</td>`;
         table += '</tr>';
       });
     } else {
-      table += '<tr><td colspan="8" style="padding: 10px; text-align: center; border: 1px solid #000;">Belum ada data buku tamu.</td></tr>';
+      table += '<tr><td colspan="7" style="padding: 10px; text-align: center; border: 1px solid #000;">Belum ada data buku tamu.</td></tr>';
     }
 
     table += '</tbody></table>';
@@ -335,6 +322,23 @@ export default function AdminDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-[#ecf0f5] font-sans overflow-hidden relative">
+      
+      {/* OVERLAY SPOTLIGHT: Ditampilkan saat ada data masuk */}
+      {showNewDataAlert && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[40] transition-opacity duration-300"
+          onClick={() => setShowNewDataAlert(false)}
+        >
+           {/* Teks Peringatan Melayang yang menunjuk ke kanan atas */}
+           <div className="absolute top-[160px] right-[40px] flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-500">
+              <div className="bg-white px-4 py-2 rounded-lg shadow-xl border-l-4 border-indigo-600 text-slate-800 font-bold text-sm">
+                 Ada data tamu baru, <span className="text-indigo-600">mohon dicek!</span>
+              </div>
+              <MoveRight size={32} className="text-white animate-pulse" />
+           </div>
+        </div>
+      )}
+
       {needsBackup && (
         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center border border-slate-200 animate-in zoom-in duration-300">
@@ -367,12 +371,16 @@ export default function AdminDashboard() {
         onLogout={handleLogout} 
       />
 
-      <main className="flex-1 w-full px-6 py-4 flex flex-col gap-3 overflow-hidden max-w-[1600px] mx-auto">
+      <main className="flex-1 w-full px-6 py-4 flex flex-col gap-3 overflow-hidden max-w-[1600px] mx-auto relative z-10">
         
         <StatsCards 
           stats={statsObj} 
           registrationsCount={displayBukuTamu.length}
-          onOpenDataMasuk={() => setShowDataModal(true)}
+          onOpenDataMasuk={() => {
+            setShowDataModal(true);
+            setShowNewDataAlert(false); // Tutup alert jika modal data dibuka
+          }}
+          isHighlight={showNewDataAlert} // Mengirim state ke komponen Card
         />
 
         <div className="flex-1 flex gap-3 overflow-hidden">
